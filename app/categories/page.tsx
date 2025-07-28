@@ -1,7 +1,5 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import Image from "next/image"
@@ -9,7 +7,8 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, Filter } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Star, Filter, Search } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
@@ -28,12 +27,14 @@ interface Product {
   gender: string
 }
 
-export default function MenTShirtsPage() {
+export default function CategoriesPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchTerm, setSearchTerm] = useState("")
+  const [selectedCategory, setSelectedCategory] = useState("all")
+  const [selectedGender, setSelectedGender] = useState("all")
   const [sortBy, setSortBy] = useState("featured")
-  const [hoveredProduct, setHoveredProduct] = useState<string | null>(null)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
   const [user, setUser] = useState<any>(null)
   const router = useRouter()
   const { toast } = useToast()
@@ -50,14 +51,12 @@ export default function MenTShirtsPage() {
   }, [])
 
   useEffect(() => {
-    if (sortBy) {
-      sortProducts(sortBy)
-    }
-  }, [sortBy])
+    filterAndSortProducts()
+  }, [products, searchTerm, selectedCategory, selectedGender, sortBy])
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/products?category=t-shirts&gender=men")
+      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/products")
       if (response.ok) {
         const data = await response.json()
         setProducts(data)
@@ -70,11 +69,7 @@ export default function MenTShirtsPage() {
             description: "Comfortable cotton t-shirt perfect for everyday wear",
             price: 399,
             originalPrice: 899,
-            images: [
-              "/placeholder.svg?height=300&width=250&text=T-shirt+Front",
-              "/placeholder.svg?height=300&width=250&text=T-shirt+Side",
-              "/placeholder.svg?height=300&width=250&text=T-shirt+Back",
-            ],
+            images: ["/placeholder.svg?height=300&width=250&text=T-shirt"],
             rating: 4.5,
             sizes: ["S", "M", "L", "XL"],
             colors: ["Black", "White", "Gray"],
@@ -84,21 +79,17 @@ export default function MenTShirtsPage() {
           },
           {
             id: "2",
-            name: "Graphic Print T-Shirt",
-            description: "Trendy graphic print t-shirt with modern design",
-            price: 499,
-            originalPrice: 999,
-            images: [
-              "/placeholder.svg?height=300&width=250&text=Graphic+Front",
-              "/placeholder.svg?height=300&width=250&text=Graphic+Side",
-              "/placeholder.svg?height=300&width=250&text=Graphic+Back",
-            ],
-            rating: 4.3,
-            sizes: ["S", "M", "L", "XL"],
-            colors: ["Navy", "Black", "White"],
+            name: "Floral Summer Dress",
+            description: "Beautiful floral dress perfect for summer",
+            price: 599,
+            originalPrice: 1199,
+            images: ["/placeholder.svg?height=300&width=250&text=Dress"],
+            rating: 4.6,
+            sizes: ["XS", "S", "M", "L"],
+            colors: ["Pink", "Blue", "White"],
             stock: 30,
-            category: "t-shirts",
-            gender: "men",
+            category: "dresses",
+            gender: "women",
           },
         ])
       }
@@ -109,9 +100,31 @@ export default function MenTShirtsPage() {
     }
   }
 
-  const sortProducts = (sortType: string) => {
-    const sorted = [...products].sort((a, b) => {
-      switch (sortType) {
+  const filterAndSortProducts = () => {
+    let filtered = [...products]
+
+    // Search filter
+    if (searchTerm) {
+      filtered = filtered.filter(
+        (product) =>
+          product.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          product.description.toLowerCase().includes(searchTerm.toLowerCase()),
+      )
+    }
+
+    // Category filter
+    if (selectedCategory !== "all") {
+      filtered = filtered.filter((product) => product.category === selectedCategory)
+    }
+
+    // Gender filter
+    if (selectedGender !== "all") {
+      filtered = filtered.filter((product) => product.gender === selectedGender)
+    }
+
+    // Sort products
+    filtered.sort((a, b) => {
+      switch (sortBy) {
         case "price-low":
           return a.price - b.price
         case "price-high":
@@ -124,21 +137,8 @@ export default function MenTShirtsPage() {
           return 0
       }
     })
-    setProducts(sorted)
-  }
 
-  const handleMouseMove = (e: React.MouseEvent, productId: string) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const width = rect.width
-    setMousePosition({ x: x / width, y: 0 })
-    setHoveredProduct(productId)
-  }
-
-  const getImageIndex = (mouseX: number) => {
-    if (mouseX < 0.33) return 0
-    if (mouseX < 0.66) return 1
-    return 2
+    setFilteredProducts(filtered)
   }
 
   const handleAddToCart = async (product: Product) => {
@@ -202,46 +202,85 @@ export default function MenTShirtsPage() {
       <div className="container mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Men's T-Shirts</h1>
-          <p className="text-gray-600">Discover our collection of premium t-shirts for men</p>
+          <h1 className="text-3xl font-bold mb-2">All Categories</h1>
+          <p className="text-gray-600">Discover our complete collection of premium fashion</p>
         </div>
 
-        {/* Filters and Sorting */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-5 w-5 text-gray-600" />
-            <span className="text-gray-600">{products.length} products</span>
+        {/* Filters */}
+        <div className="bg-white rounded-lg p-6 mb-8 shadow-sm">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+              <Input
+                placeholder="Search products..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+
+            {/* Category Filter */}
+            <Select value={selectedCategory} onValueChange={setSelectedCategory}>
+              <SelectTrigger>
+                <SelectValue placeholder="Category" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Categories</SelectItem>
+                <SelectItem value="t-shirts">T-Shirts</SelectItem>
+                <SelectItem value="shirts">Shirts</SelectItem>
+                <SelectItem value="jeans">Jeans</SelectItem>
+                <SelectItem value="dresses">Dresses</SelectItem>
+                <SelectItem value="tops">Tops</SelectItem>
+                <SelectItem value="jackets">Jackets</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Gender Filter */}
+            <Select value={selectedGender} onValueChange={setSelectedGender}>
+              <SelectTrigger>
+                <SelectValue placeholder="Gender" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                <SelectItem value="men">Men</SelectItem>
+                <SelectItem value="women">Women</SelectItem>
+                <SelectItem value="unisex">Unisex</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Sort */}
+            <Select value={sortBy} onValueChange={setSortBy}>
+              <SelectTrigger>
+                <SelectValue placeholder="Sort by" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="featured">Featured</SelectItem>
+                <SelectItem value="price-low">Price: Low to High</SelectItem>
+                <SelectItem value="price-high">Price: High to Low</SelectItem>
+                <SelectItem value="rating">Highest Rated</SelectItem>
+                <SelectItem value="newest">Newest</SelectItem>
+              </SelectContent>
+            </Select>
+
+            {/* Results Count */}
+            <div className="flex items-center text-gray-600">
+              <Filter className="h-4 w-4 mr-2" />
+              <span>{filteredProducts.length} products</span>
+            </div>
           </div>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-48">
-              <SelectValue placeholder="Sort by" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="featured">Featured</SelectItem>
-              <SelectItem value="price-low">Price: Low to High</SelectItem>
-              <SelectItem value="price-high">Price: High to Low</SelectItem>
-              <SelectItem value="rating">Highest Rated</SelectItem>
-              <SelectItem value="newest">Newest</SelectItem>
-            </SelectContent>
-          </Select>
         </div>
 
         {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
+          {filteredProducts.map((product) => (
             <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
               <div
                 className="relative overflow-hidden cursor-pointer"
-                onMouseMove={(e) => handleMouseMove(e, product.id)}
-                onMouseLeave={() => setHoveredProduct(null)}
                 onClick={() => router.push(`/product/${product.id}`)}
               >
                 <Image
-                  src={
-                    hoveredProduct === product.id && product.images.length > 1
-                      ? product.images[getImageIndex(mousePosition.x)]
-                      : product.images[0]
-                  }
+                  src={product.images[0] || "/placeholder.svg"}
                   alt={product.name}
                   width={250}
                   height={300}
@@ -258,6 +297,14 @@ export default function MenTShirtsPage() {
                 {product.stock === 0 && <Badge className="absolute top-2 right-2 bg-gray-500">Out of Stock</Badge>}
               </div>
               <CardContent className="p-4">
+                <div className="mb-2">
+                  <Badge variant="outline" className="text-xs">
+                    {product.category.replace("-", " ").toUpperCase()}
+                  </Badge>
+                  <Badge variant="outline" className="text-xs ml-2">
+                    {product.gender.toUpperCase()}
+                  </Badge>
+                </div>
                 <h3 className="font-semibold text-sm mb-2 line-clamp-2">{product.name}</h3>
                 <div className="flex items-center mb-2">
                   <div className="flex items-center">
@@ -300,9 +347,20 @@ export default function MenTShirtsPage() {
           ))}
         </div>
 
-        {products.length === 0 && (
+        {filteredProducts.length === 0 && (
           <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No t-shirts found</p>
+            <p className="text-gray-600 text-lg">No products found matching your criteria</p>
+            <Button
+              className="mt-4"
+              onClick={() => {
+                setSearchTerm("")
+                setSelectedCategory("all")
+                setSelectedGender("all")
+                setSortBy("featured")
+              }}
+            >
+              Clear Filters
+            </Button>
           </div>
         )}
       </div>
