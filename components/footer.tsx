@@ -23,22 +23,22 @@ export function Footer() {
             </p>
             <div className="flex space-x-4">
               <Button variant="ghost" size="icon" asChild>
-                <Link href="https://facebook.com" target="_blank" rel="noopener noreferrer">
+                <Link href="https://facebook.com/stitchpopclothing" target="_blank" rel="noopener noreferrer">
                   <Facebook className="h-4 w-4" />
                 </Link>
               </Button>
               <Button variant="ghost" size="icon" asChild>
-                <Link href="https://twitter.com" target="_blank" rel="noopener noreferrer">
+                <Link href="https://twitter.com/stitchpopclothing" target="_blank" rel="noopener noreferrer">
                   <Twitter className="h-4 w-4" />
                 </Link>
               </Button>
               <Button variant="ghost" size="icon" asChild>
-                <Link href="https://instagram.com" target="_blank" rel="noopener noreferrer">
+                <Link href="https://www.instagram.com/stitchpopclothing/" target="_blank" rel="noopener noreferrer">
                   <Instagram className="h-4 w-4" />
                 </Link>
               </Button>
               <Button variant="ghost" size="icon" asChild>
-                <Link href="https://youtube.com" target="_blank" rel="noopener noreferrer">
+                <Link href="https://youtube.com/@stitchpopclothing" target="_blank" rel="noopener noreferrer">
                   <Youtube className="h-4 w-4" />
                 </Link>
               </Button>
@@ -67,7 +67,10 @@ export function Footer() {
               >
                 Collections
               </Link>
-              <Link href="/sale" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+              <Link
+                href="/sale"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors text-red-600"
+              >
                 Sale
               </Link>
               <Link
@@ -125,15 +128,15 @@ export function Footer() {
             <div className="space-y-2">
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Mail className="h-4 w-4" />
-                <span>support@stitchpop.com</span>
+                <span>stitchpopclothing@gmail.com</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Phone className="h-4 w-4" />
-                <span>+1 (555) 123-4567</span>
+                <span>+91 9600958937</span>
               </div>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <MapPin className="h-4 w-4" />
-                <span>123 Fashion St, Style City, SC 12345</span>
+                <span>Chennai, Tamil Nadu, India</span>
               </div>
             </div>
           </div>
@@ -166,7 +169,7 @@ export function Footer() {
                 <span className="text-xs font-bold">MC</span>
               </div>
               <div className="w-8 h-5 bg-muted rounded flex items-center justify-center">
-                <span className="text-xs font-bold">PP</span>
+                <span className="text-xs font-bold">UPI</span>
               </div>
             </div>
           </div>

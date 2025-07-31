@@ -22,14 +22,14 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://stitchpop.com"),
+  metadataBase: new URL("https://stitchpop.vercel.app"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "Stitch POP - Premium Fashion & Lifestyle",
     description: "Discover premium fashion and lifestyle products. Quality clothing for men and women.",
-    url: "https://stitchpop.com",
+    url: "https://stitchpop.vercel.app",
     siteName: "Stitch POP",
     images: [
       {
@@ -47,7 +47,7 @@ export const metadata: Metadata = {
     title: "Stitch POP - Premium Fashion & Lifestyle",
     description: "Discover premium fashion and lifestyle products. Quality clothing for men and women.",
     images: ["/og-image.jpg"],
-    creator: "@stitchpop",
+    creator: "@stitchpopclothing",
   },
   robots: {
     index: true,
@@ -61,7 +61,7 @@ export const metadata: Metadata = {
     },
   },
   verification: {
-    google: process.env.GOOGLE_SITE_VERIFICATION,
+    google: "2dIuLHsZ-VrZVK1ZQTAuLFqT7eaP7hameErs36wo7VI",
   },
     generator: 'v0.dev'
 }
@@ -74,6 +74,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="google-site-verification" content="2dIuLHsZ-VrZVK1ZQTAuLFqT7eaP7hameErs36wo7VI" />
         {process.env.NEXT_PUBLIC_GA_ID && (
           <>
             <script async src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} />

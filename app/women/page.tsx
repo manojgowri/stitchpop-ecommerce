@@ -7,13 +7,14 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Star } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 interface Product {
   id: string
   name: string
   price: number
-  originalPrice?: number
-  image_url: string
+  original_price?: number
+  images: string[]
   rating: number
   category: string
 }
@@ -62,37 +63,39 @@ export default function WomenPage() {
 
   const fetchFeaturedProducts = async () => {
     try {
-      const response = await fetch(
-        "https://stitchpop-ecommerce.onrender.com/api/products?gender=women&featured=true&limit=8",
-      )
-      if (response.ok) {
-        const data = await response.json()
-        setFeaturedProducts(data)
-      } else {
-        // Fallback data
-        setFeaturedProducts([
-          {
-            id: "1",
-            name: "Floral Summer Dress",
-            price: 599,
-            originalPrice: 1199,
-            image_url: "/placeholder.svg?height=300&width=250&text=Women's+Dress",
-            rating: 4.6,
-            category: "dresses",
-          },
-          {
-            id: "2",
-            name: "Casual Crop Top",
-            price: 299,
-            originalPrice: 599,
-            image_url: "/placeholder.svg?height=300&width=250&text=Women's+Top",
-            rating: 4.4,
-            category: "tops",
-          },
-        ])
-      }
+      const { data, error } = await supabase
+        .from("products")
+        .select("*")
+        .eq("gender", "women")
+        .eq("is_active", true)
+        .limit(8)
+
+      if (error) throw error
+
+      setFeaturedProducts(data || [])
     } catch (error) {
       console.error("Error fetching featured products:", error)
+      // Fallback data
+      setFeaturedProducts([
+        {
+          id: "1",
+          name: "Floral Summer Dress",
+          price: 599,
+          original_price: 1199,
+          images: ["/placeholder.svg?height=300&width=250&text=Women's+Dress"],
+          rating: 4.6,
+          category: "dresses",
+        },
+        {
+          id: "2",
+          name: "Casual Crop Top",
+          price: 299,
+          original_price: 599,
+          images: ["/placeholder.svg?height=300&width=250&text=Women's+Top"],
+          rating: 4.4,
+          category: "tops",
+        },
+      ])
     } finally {
       setLoading(false)
     }
@@ -189,15 +192,15 @@ export default function WomenPage() {
                 <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
                   <div className="relative overflow-hidden">
                     <Image
-                      src={product.image_url || "/placeholder.svg"}
+                      src={product.images[0] || "/placeholder.svg"}
                       alt={product.name}
                       width={250}
                       height={300}
                       className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                     />
-                    {product.originalPrice && (
+                    {product.original_price && (
                       <Badge className="absolute top-2 left-2 bg-red-500">
-                        {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
+                        {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
                       </Badge>
                     )}
                   </div>
@@ -219,8 +222,8 @@ export default function WomenPage() {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-lg">₹{product.price}</span>
-                        {product.originalPrice && (
-                          <span className="text-sm text-gray-500 line-through">₹{product.originalPrice}</span>
+                        {product.original_price && (
+                          <span className="text-sm text-gray-500 line-through">₹{product.original_price}</span>
                         )}
                       </div>
                       <Button size="sm" asChild>
