@@ -1,26 +1,37 @@
-import { createClient } from "@supabase/supabase-js"
+import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+// Environment variables with fallbacks for build time
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey)
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error("Missing Supabase environment variables")
+}
 
 // Create a singleton client for use throughout the app
-export function createSupabaseClient() {
-  return createClient(supabaseUrl, supabaseAnonKey)
+export function createClient() {
+  return createSupabaseClient(supabaseUrl, supabaseAnonKey)
 }
 
 // Server-side client with service role key
 export function createServerClient() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
-  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!
+  const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
-  return createClient(supabaseUrl, supabaseServiceKey)
+  if (!supabaseServiceKey) {
+    throw new Error("Missing Supabase service role key")
+  }
+
+  return createSupabaseClient(supabaseUrl, supabaseServiceKey)
 }
 
 // Auth helpers
 export const signInWithGoogle = async () => {
-  const { data, error } = await supabase.auth.signInWithOAuth({
+  const client = createClient()
+  if (!client) {
+    return { data: null, error: { message: "Supabase not configured" } }
+  }
+
+  const { data, error } = await client.auth.signInWithOAuth({
     provider: "google",
     options: {
       redirectTo: `${window.location.origin}/auth/callback`,
@@ -30,15 +41,25 @@ export const signInWithGoogle = async () => {
 }
 
 export const signOut = async () => {
-  const { error } = await supabase.auth.signOut()
+  const client = createClient()
+  if (!client) {
+    return { error: { message: "Supabase not configured" } }
+  }
+
+  const { error } = await client.auth.signOut()
   return { error }
 }
 
 export const getCurrentUser = async () => {
+  const client = createClient()
+  if (!client) {
+    return { user: null, error: { message: "Supabase not configured" } }
+  }
+
   const {
     data: { user },
     error,
-  } = await supabase.auth.getUser()
+  } = await client.auth.getUser()
   return { user, error }
 }
 
@@ -185,6 +206,44 @@ export interface Database {
           description?: string | null
           image_url?: string | null
           is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      reviews: {
+        Row: {
+          id: string
+          product_id: string
+          user_id: string
+          rating: number
+          title: string
+          comment: string
+          is_verified: boolean
+          helpful_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          product_id: string
+          user_id: string
+          rating: number
+          title: string
+          comment: string
+          is_verified?: boolean
+          helpful_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          product_id?: string
+          user_id?: string
+          rating?: number
+          title?: string
+          comment?: string
+          is_verified?: boolean
+          helpful_count?: number
           created_at?: string
           updated_at?: string
         }

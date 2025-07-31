@@ -2,10 +2,10 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
+import { Header } from "@/components/header"
+import { Footer } from "@/components/footer"
 import { ThemeProvider } from "@/components/theme-provider"
 import { Toaster } from "@/components/ui/toaster"
-import Header from "@/components/header"
-import Footer from "@/components/footer"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -13,11 +13,19 @@ export const metadata: Metadata = {
   title: "Stitch POP - Premium Fashion & Lifestyle",
   description:
     "Premium fashion and lifestyle brand offering the latest trends in clothing for men and women. Quality, style, and comfort in every piece.",
-  keywords: "fashion, clothing, men, women, t-shirts, shirts, jeans, dresses, premium fashion, lifestyle",
+  keywords: "fashion, clothing, men, women, t-shirts, shirts, jeans, dresses, premium, lifestyle",
   authors: [{ name: "Stitch POP" }],
   creator: "Stitch POP",
   publisher: "Stitch POP",
+  formatDetection: {
+    email: false,
+    address: false,
+    telephone: false,
+  },
   metadataBase: new URL("https://stitchpop.vercel.app"),
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "Stitch POP - Premium Fashion & Lifestyle",
     description: "Premium fashion and lifestyle brand offering the latest trends in clothing for men and women.",
@@ -25,10 +33,10 @@ export const metadata: Metadata = {
     siteName: "Stitch POP",
     images: [
       {
-        url: "/placeholder.svg?height=630&width=1200&text=Stitch+POP",
+        url: "/placeholder.jpg",
         width: 1200,
         height: 630,
-        alt: "Stitch POP - Premium Fashion",
+        alt: "Stitch POP Fashion",
       },
     ],
     locale: "en_US",
@@ -38,7 +46,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "Stitch POP - Premium Fashion & Lifestyle",
     description: "Premium fashion and lifestyle brand offering the latest trends in clothing for men and women.",
-    images: ["/placeholder.svg?height=630&width=1200&text=Stitch+POP"],
+    images: ["/placeholder.jpg"],
   },
   robots: {
     index: true,
