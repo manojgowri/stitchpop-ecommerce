@@ -9,33 +9,25 @@ export default function AuthCallback() {
 
   useEffect(() => {
     const handleAuthCallback = async () => {
-      const { data, error } = await supabase.auth.getSession()
+      try {
+        const { data, error } = await supabase.auth.getSession()
 
-      if (error) {
-        console.error("Auth callback error:", error)
-        router.push("/auth/login")
-        return
-      }
+        if (error) {
+          console.error("Auth callback error:", error)
+          router.push("/auth/login?error=callback_error")
+          return
+        }
 
-      if (data.session?.user) {
-        // Create or update user in our database
-        const user = data.session.user
-        await fetch("https://stitchpop-ecommerce.onrender.com/api/users", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            id: user.id,
-            email: user.email,
-            name: user.user_metadata?.name || user.email?.split("@")[0],
-            is_admin: false,
-          }),
-        })
-
-        router.push("/")
-      } else {
-        router.push("/auth/login")
+        if (data.session) {
+          // User is authenticated, redirect to home
+          router.push("/")
+        } else {
+          // No session, redirect to login
+          router.push("/auth/login")
+        }
+      } catch (error) {
+        console.error("Unexpected error:", error)
+        router.push("/auth/login?error=unexpected_error")
       }
     }
 
@@ -45,8 +37,8 @@ export default function AuthCallback() {
   return (
     <div className="min-h-screen flex items-center justify-center">
       <div className="text-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600 mx-auto"></div>
-        <p className="mt-4 text-gray-600">Completing authentication...</p>
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto"></div>
+        <p className="mt-4 text-muted-foreground">Completing authentication...</p>
       </div>
     </div>
   )

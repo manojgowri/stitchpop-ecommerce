@@ -12,23 +12,18 @@ const inter = Inter({ subsets: ["latin"] })
 export const metadata: Metadata = {
   title: "Stitch POP - Premium Fashion & Lifestyle",
   description:
-    "Discover premium fashion and lifestyle products. Quality clothing for men and women with the latest trends and timeless classics.",
-  keywords: "fashion, clothing, men, women, premium, lifestyle, trendy, quality",
+    "Premium fashion and lifestyle brand offering the latest trends in clothing for men and women. Quality, style, and comfort in every piece.",
+  keywords: "fashion, clothing, men, women, lifestyle, premium, style, trends",
   authors: [{ name: "Stitch POP" }],
   creator: "Stitch POP",
   publisher: "Stitch POP",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
   metadataBase: new URL("https://stitchpop.vercel.app"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     title: "Stitch POP - Premium Fashion & Lifestyle",
-    description: "Discover premium fashion and lifestyle products. Quality clothing for men and women.",
+    description: "Premium fashion and lifestyle brand offering the latest trends in clothing for men and women.",
     url: "https://stitchpop.vercel.app",
     siteName: "Stitch POP",
     images: [
@@ -45,9 +40,8 @@ export const metadata: Metadata = {
   twitter: {
     card: "summary_large_image",
     title: "Stitch POP - Premium Fashion & Lifestyle",
-    description: "Discover premium fashion and lifestyle products. Quality clothing for men and women.",
+    description: "Premium fashion and lifestyle brand offering the latest trends in clothing for men and women.",
     images: ["/og-image.jpg"],
-    creator: "@stitchpopclothing",
   },
   robots: {
     index: true,
@@ -75,25 +69,10 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="2dIuLHsZ-VrZVK1ZQTAuLFqT7eaP7hameErs36wo7VI" />
-        {process.env.NEXT_PUBLIC_GA_ID && (
-          <>
-            <script async src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GA_ID}`} />
-            <script
-              dangerouslySetInnerHTML={{
-                __html: `
-                  window.dataLayer = window.dataLayer || [];
-                  function gtag(){dataLayer.push(arguments);}
-                  gtag('js', new Date());
-                  gtag('config', '${process.env.NEXT_PUBLIC_GA_ID}');
-                `,
-              }}
-            />
-          </>
-        )}
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <div className="relative flex min-h-screen flex-col">
+          <div className="min-h-screen flex flex-col">
             <Header />
             <main className="flex-1">{children}</main>
             <Footer />
