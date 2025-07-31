@@ -5,6 +5,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sh
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
+import { Separator } from "@/components/ui/separator"
 import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
@@ -17,7 +18,7 @@ interface CartItem {
   quantity: number
   size: string | null
   color: string | null
-  product: {
+  products: {
     id: string
     name: string
     price: number
@@ -62,7 +63,7 @@ export function CartSlideOver({ open, onOpenChange }: CartSlideOverProps) {
         .from("cart")
         .select(`
           *,
-          product:products(*)
+          products(*)
         `)
         .eq("user_id", user.id)
 
@@ -120,7 +121,7 @@ export function CartSlideOver({ open, onOpenChange }: CartSlideOverProps) {
   }
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + item.product.price * item.quantity, 0)
+    return cartItems.reduce((total, item) => total + item.products.price * item.quantity, 0)
   }
 
   const getTotalItems = () => {
@@ -175,20 +176,20 @@ export function CartSlideOver({ open, onOpenChange }: CartSlideOverProps) {
                   <div key={item.id} className="flex space-x-4 py-4">
                     <div className="relative h-16 w-16 rounded-md overflow-hidden">
                       <Image
-                        src={item.product.images[0] || "/placeholder.svg"}
-                        alt={item.product.name}
+                        src={item.products.images[0] || "/placeholder.svg"}
+                        alt={item.products.name}
                         fill
                         className="object-cover"
                       />
                     </div>
                     <div className="flex-1 space-y-1">
-                      <h3 className="font-medium text-sm leading-tight">{item.product.name}</h3>
+                      <h3 className="font-medium text-sm leading-tight">{item.products.name}</h3>
                       <div className="flex items-center space-x-2 text-xs text-muted-foreground">
                         {item.size && <span>Size: {item.size}</span>}
                         {item.color && <span>Color: {item.color}</span>}
                       </div>
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">₹{item.product.price}</span>
+                        <span className="font-medium">₹{item.products.price}</span>
                         <div className="flex items-center space-x-2">
                           <Button
                             variant="outline"
@@ -224,13 +225,24 @@ export function CartSlideOver({ open, onOpenChange }: CartSlideOverProps) {
             </ScrollArea>
 
             <div className="space-y-4 pt-4 border-t">
-              <div className="flex items-center justify-between text-lg font-medium">
-                <span>Total</span>
-                <span>₹{getTotalPrice().toLocaleString()}</span>
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm">
+                  <span>Subtotal</span>
+                  <span>₹{getTotalPrice().toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between text-sm">
+                  <span>Shipping</span>
+                  <span>{getTotalPrice() > 999 ? "Free" : "₹99"}</span>
+                </div>
+                <Separator />
+                <div className="flex items-center justify-between text-lg font-medium">
+                  <span>Total</span>
+                  <span>₹{(getTotalPrice() + (getTotalPrice() > 999 ? 0 : 99)).toLocaleString()}</span>
+                </div>
               </div>
               <div className="space-y-2">
-                <Button className="w-full" size="lg">
-                  Checkout
+                <Button className="w-full" size="lg" asChild>
+                  <Link href="/cart">Checkout</Link>
                 </Button>
                 <Button variant="outline" className="w-full bg-transparent" onClick={() => onOpenChange(false)}>
                   Continue Shopping
