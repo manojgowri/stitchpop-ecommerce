@@ -1,22 +1,20 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { Button } from "@/components/ui/button"
+import { Separator } from "@/components/ui/separator"
+import { X, Plus, Minus, ShoppingBag } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { Plus, Minus, ShoppingBag } from "lucide-react"
-import { Button } from "@/components/ui/button"
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet"
-import { Separator } from "@/components/ui/separator"
-import { Badge } from "@/components/ui/badge"
 
 interface CartItem {
   id: string
   name: string
   price: number
-  image: string
+  quantity: number
   size: string
   color: string
-  quantity: number
+  image: string
 }
 
 interface CartSlideOverProps {
@@ -26,166 +24,175 @@ interface CartSlideOverProps {
 
 export function CartSlideOver({ isOpen, onClose }: CartSlideOverProps) {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
-    const loadCart = () => {
-      const cart = JSON.parse(localStorage.getItem("cart") || "[]")
-      setCartItems(cart)
+    if (isOpen) {
+      // Fetch cart items when opened
+      fetchCartItems()
     }
+  }, [isOpen])
 
-    loadCart()
-
-    // Listen for cart updates
-    const handleCartUpdate = () => loadCart()
-    window.addEventListener("cartUpdated", handleCartUpdate)
-
-    return () => window.removeEventListener("cartUpdated", handleCartUpdate)
-  }, [])
-
-  const updateQuantity = (id: string, size: string, color: string, newQuantity: number) => {
-    if (newQuantity <= 0) {
-      removeItem(id, size, color)
-      return
+  const fetchCartItems = async () => {
+    setLoading(true)
+    try {
+      // Mock data for now - replace with actual API call
+      setCartItems([
+        {
+          id: "1",
+          name: "Classic Cotton T-Shirt",
+          price: 399,
+          quantity: 2,
+          size: "M",
+          color: "Black",
+          image: "/placeholder.svg?height=80&width=80&text=T-shirt",
+        },
+        {
+          id: "2",
+          name: "Denim Jeans",
+          price: 899,
+          quantity: 1,
+          size: "32",
+          color: "Blue",
+          image: "/placeholder.svg?height=80&width=80&text=Jeans",
+        },
+      ])
+    } catch (error) {
+      console.error("Error fetching cart items:", error)
+    } finally {
+      setLoading(false)
     }
-
-    const updatedCart = cartItems.map((item) =>
-      item.id === id && item.size === size && item.color === color ? { ...item, quantity: newQuantity } : item,
-    )
-
-    setCartItems(updatedCart)
-    localStorage.setItem("cart", JSON.stringify(updatedCart))
-    window.dispatchEvent(new Event("cartUpdated"))
   }
 
-  const removeItem = (id: string, size: string, color: string) => {
-    const updatedCart = cartItems.filter((item) => !(item.id === id && item.size === size && item.color === color))
-
-    setCartItems(updatedCart)
-    localStorage.setItem("cart", JSON.stringify(updatedCart))
-    window.dispatchEvent(new Event("cartUpdated"))
+  const updateQuantity = (id: string, newQuantity: number) => {
+    if (newQuantity === 0) {
+      setCartItems((items) => items.filter((item) => item.id !== id))
+    } else {
+      setCartItems((items) => items.map((item) => (item.id === id ? { ...item, quantity: newQuantity } : item)))
+    }
   }
 
-  const subtotal = cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
-  const shipping = subtotal > 1000 ? 0 : 100
+  const subtotal = cartItems.reduce((sum, item) => sum + item.price * item.quantity, 0)
+  const shipping = subtotal > 999 ? 0 : 99
   const total = subtotal + shipping
 
+  if (!isOpen) return null
+
   return (
-    <Sheet open={isOpen} onOpenChange={onClose}>
-      <SheetContent className="w-full sm:max-w-lg">
-        <SheetHeader>
-          <SheetTitle className="flex items-center gap-2">
-            <ShoppingBag className="h-5 w-5" />
-            Shopping Cart ({cartItems.length})
-          </SheetTitle>
-        </SheetHeader>
+    <>
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-black bg-opacity-50 z-50" onClick={onClose} />
 
+      {/* Slide Over Panel */}
+      <div className="fixed right-0 top-0 h-full w-full max-w-md bg-white shadow-xl z-50 transform transition-transform duration-300 ease-in-out">
         <div className="flex flex-col h-full">
-          {cartItems.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-center">
-              <ShoppingBag className="h-12 w-12 text-muted-foreground mb-4" />
-              <h3 className="text-lg font-semibold mb-2">Your cart is empty</h3>
-              <p className="text-muted-foreground mb-4">Add some items to get started</p>
-              <Button onClick={onClose} asChild>
-                <Link href="/categories">Continue Shopping</Link>
-              </Button>
-            </div>
-          ) : (
-            <>
-              {/* Cart Items */}
-              <div className="flex-1 overflow-y-auto py-4">
-                <div className="space-y-4">
-                  {cartItems.map((item, index) => (
-                    <div key={`${item.id}-${item.size}-${item.color}-${index}`} className="flex gap-4">
-                      <div className="relative h-20 w-20 rounded-md overflow-hidden">
-                        <Image src={item.image || "/placeholder.svg"} alt={item.name} fill className="object-cover" />
-                      </div>
+          {/* Header */}
+          <div className="flex items-center justify-between p-4 border-b">
+            <h2 className="text-lg font-semibold flex items-center">
+              <ShoppingBag className="h-5 w-5 mr-2" />
+              Shopping Cart
+            </h2>
+            <Button variant="ghost" size="sm" onClick={onClose}>
+              <X className="h-5 w-5" />
+            </Button>
+          </div>
 
-                      <div className="flex-1 space-y-2">
-                        <div>
-                          <h4 className="font-medium text-sm">{item.name}</h4>
-                          <div className="flex gap-2 text-xs text-muted-foreground">
-                            <Badge variant="outline" className="text-xs">
-                              {item.size}
-                            </Badge>
-                            <Badge variant="outline" className="text-xs">
-                              {item.color}
-                            </Badge>
-                          </div>
-                        </div>
-
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 bg-transparent"
-                              onClick={() => updateQuantity(item.id, item.size, item.color, item.quantity - 1)}
-                            >
-                              <Minus className="h-3 w-3" />
-                            </Button>
-                            <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              className="h-6 w-6 bg-transparent"
-                              onClick={() => updateQuantity(item.id, item.size, item.color, item.quantity + 1)}
-                            >
-                              <Plus className="h-3 w-3" />
-                            </Button>
-                          </div>
-
-                          <div className="text-right">
-                            <p className="font-medium text-sm">₹{(item.price * item.quantity).toLocaleString()}</p>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              className="h-auto p-0 text-xs text-muted-foreground hover:text-destructive"
-                              onClick={() => removeItem(item.id, item.size, item.color)}
-                            >
-                              Remove
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
+          {/* Cart Items */}
+          <div className="flex-1 overflow-y-auto p-4">
+            {loading ? (
+              <div className="flex items-center justify-center h-32">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900"></div>
+              </div>
+            ) : cartItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-32 text-gray-500">
+                <ShoppingBag className="h-12 w-12 mb-2" />
+                <p>Your cart is empty</p>
+                <Button className="mt-4" onClick={onClose}>
+                  Continue Shopping
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {cartItems.map((item) => (
+                  <div key={item.id} className="flex items-center space-x-3 p-3 border rounded-lg">
+                    <Image
+                      src={item.image || "/placeholder.svg"}
+                      alt={item.name}
+                      width={60}
+                      height={60}
+                      className="rounded-md object-cover"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <h3 className="text-sm font-medium truncate">{item.name}</h3>
+                      <p className="text-xs text-gray-500">
+                        Size: {item.size} | Color: {item.color}
+                      </p>
+                      <p className="text-sm font-semibold">₹{item.price}</p>
                     </div>
-                  ))}
+                    <div className="flex items-center space-x-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item.id, item.quantity - 1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Minus className="h-3 w-3" />
+                      </Button>
+                      <span className="text-sm font-medium w-8 text-center">{item.quantity}</span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => updateQuantity(item.id, item.quantity + 1)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Plus className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Footer */}
+          {cartItems.length > 0 && (
+            <div className="border-t p-4 space-y-4">
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span>Subtotal</span>
+                  <span>₹{subtotal}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Shipping</span>
+                  <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
+                </div>
+                <Separator />
+                <div className="flex justify-between font-semibold">
+                  <span>Total</span>
+                  <span>₹{total}</span>
                 </div>
               </div>
 
-              <Separator />
-
-              {/* Cart Summary */}
-              <div className="space-y-4 py-4">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-sm">
-                    <span>Subtotal</span>
-                    <span>₹{subtotal.toLocaleString()}</span>
-                  </div>
-                  <div className="flex justify-between text-sm">
-                    <span>Shipping</span>
-                    <span>{shipping === 0 ? "Free" : `₹${shipping}`}</span>
-                  </div>
-                  {shipping === 0 && <p className="text-xs text-green-600">Free shipping on orders over ₹1,000!</p>}
-                  <Separator />
-                  <div className="flex justify-between font-medium">
-                    <span>Total</span>
-                    <span>₹{total.toLocaleString()}</span>
-                  </div>
+              {shipping > 0 && (
+                <div className="text-xs text-gray-600 bg-gray-50 p-2 rounded">
+                  Add ₹{1000 - subtotal} more for free shipping!
                 </div>
+              )}
 
-                <div className="space-y-2">
-                  <Button className="w-full" asChild>
-                    <Link href="/checkout">Proceed to Checkout</Link>
+              <div className="space-y-2">
+                <Link href="/cart" onClick={onClose}>
+                  <Button variant="outline" className="w-full bg-transparent">
+                    View Cart
                   </Button>
-                  <Button variant="outline" className="w-full bg-transparent" onClick={onClose} asChild>
-                    <Link href="/cart">View Full Cart</Link>
-                  </Button>
-                </div>
+                </Link>
+                <Link href="/checkout" onClick={onClose}>
+                  <Button className="w-full">Checkout</Button>
+                </Link>
               </div>
-            </>
+            </div>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </>
   )
 }

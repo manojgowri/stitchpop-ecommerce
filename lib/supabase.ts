@@ -1,8 +1,8 @@
 import { createClient as createSupabaseClient } from "@supabase/supabase-js"
 
 // Environment variables with fallbacks for build time
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables")
@@ -27,9 +27,6 @@ export function createServerClient() {
 // Auth helpers
 export const signInWithGoogle = async () => {
   const client = createClient()
-  if (!client) {
-    return { data: null, error: { message: "Supabase not configured" } }
-  }
 
   const { data, error } = await client.auth.signInWithOAuth({
     provider: "google",
@@ -42,20 +39,12 @@ export const signInWithGoogle = async () => {
 
 export const signOut = async () => {
   const client = createClient()
-  if (!client) {
-    return { error: { message: "Supabase not configured" } }
-  }
-
   const { error } = await client.auth.signOut()
   return { error }
 }
 
 export const getCurrentUser = async () => {
   const client = createClient()
-  if (!client) {
-    return { user: null, error: { message: "Supabase not configured" } }
-  }
-
   const {
     data: { user },
     error,
