@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -31,23 +31,36 @@ interface Product {
   name: string
   price: number
   stock: number
-  category: string
+  category_id: string
+  theme_id: string | null
   gender: string
+  is_active: boolean
+  is_featured: boolean
+  is_on_sale: boolean
   created_at: string
 }
 
-interface Collection {
+interface Theme {
   id: string
   name: string
-  description: string
-  image_url: string
+  description: string | null
+  is_active: boolean
+  created_at: string
+}
+
+interface Category {
+  id: string
+  name: string
+  description: string | null
+  gender: string
+  is_active: boolean
   created_at: string
 }
 
 interface Order {
   id: string
-  user_email: string
-  total_amount: number
+  user_id: string
+  total: number
   status: string
   created_at: string
 }
@@ -55,9 +68,9 @@ interface Order {
 export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null)
   const [products, setProducts] = useState<Product[]>([])
-  const [collections, setCollections] = useState<Collection[]>([])
+  const [themes, setThemes] = useState<Theme[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [orders, setOrders] = useState<Order[]>([])
-  const [lowStockProducts, setLowStockProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState({
     totalProducts: 0,
@@ -71,8 +84,9 @@ export default function AdminDashboard() {
     name: "",
     description: "",
     price: "",
-    originalPrice: "",
-    category: "",
+    original_price: "",
+    category_id: "",
+    theme_id: "",
     gender: "",
     sizes: "",
     colors: "",
@@ -80,7 +94,7 @@ export default function AdminDashboard() {
     images: "",
   })
 
-  const [newCollection, setNewCollection] = useState({
+  const [newTheme, setNewTheme] = useState({
     name: "",
     description: "",
     image_url: "",
@@ -90,7 +104,11 @@ export default function AdminDashboard() {
   const { toast } = useToast()
 
   useEffect(() => {
-    const checkAdminAccess = async () => {
+    checkAdminAccess()
+  }, [])
+
+  const checkAdminAccess = async () => {
+    try {
       const {
         data: { session },
       } = await supabase.auth.getSession()
@@ -100,53 +118,75 @@ export default function AdminDashboard() {
         return
       }
 
-      // Check if user is admin (you can implement this check based on your user metadata)
-      if (!session.user.user_metadata?.is_admin) {
+      // Check if user is admin in the users table
+      const { data: userData, error: userError } = await supabase
+        .from("users")
+        .select("*")
+        .eq("email", session.user.email)
+        .single()
+
+      if (userError || !userData?.is_admin) {
+        toast({
+          title: "Access Denied",
+          description: "You don't have admin privileges. Contact support if you believe this is an error.",
+          variant: "destructive",
+        })
         router.push("/")
         return
       }
 
       setUser(session.user)
-      await Promise.all([fetchProducts(), fetchCollections(), fetchOrders(), fetchStats()])
+      await Promise.all([fetchProducts(), fetchThemes(), fetchCategories(), fetchOrders(), fetchStats()])
       setLoading(false)
+    } catch (error) {
+      console.error("Error checking admin access:", error)
+      router.push("/")
     }
-
-    checkAdminAccess()
-  }, [router])
+  }
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/admin/products")
-      if (response.ok) {
-        const data = await response.json()
-        setProducts(data)
-        const lowStock = data.filter((product: Product) => product.stock <= 5)
-        setLowStockProducts(lowStock)
-      }
+      const { data, error } = await supabase.from("products").select("*").order("created_at", { ascending: false })
+
+      if (error) throw error
+      setProducts(data || [])
     } catch (error) {
       console.error("Error fetching products:", error)
     }
   }
 
-  const fetchCollections = async () => {
+  const fetchThemes = async () => {
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/admin/collections")
-      if (response.ok) {
-        const data = await response.json()
-        setCollections(data)
-      }
+      const { data, error } = await supabase.from("themes").select("*").order("created_at", { ascending: false })
+
+      if (error) throw error
+      setThemes(data || [])
     } catch (error) {
-      console.error("Error fetching collections:", error)
+      console.error("Error fetching themes:", error)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase.from("categories").select("*").order("gender", { ascending: true })
+
+      if (error) throw error
+      setCategories(data || [])
+    } catch (error) {
+      console.error("Error fetching categories:", error)
     }
   }
 
   const fetchOrders = async () => {
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/admin/orders")
-      if (response.ok) {
-        const data = await response.json()
-        setOrders(data)
-      }
+      const { data, error } = await supabase
+        .from("orders")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(10)
+
+      if (error) throw error
+      setOrders(data || [])
     } catch (error) {
       console.error("Error fetching orders:", error)
     }
@@ -154,11 +194,25 @@ export default function AdminDashboard() {
 
   const fetchStats = async () => {
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/admin/stats")
-      if (response.ok) {
-        const data = await response.json()
-        setStats(data)
-      }
+      // Get product count
+      const { count: productCount } = await supabase.from("products").select("*", { count: "exact", head: true })
+
+      // Get order count and revenue
+      const { data: orderData } = await supabase.from("orders").select("total")
+      const totalRevenue = orderData?.reduce((sum, order) => sum + order.total, 0) || 0
+
+      // Get low stock count
+      const { count: lowStockCount } = await supabase
+        .from("products")
+        .select("*", { count: "exact", head: true })
+        .lte("stock", 5)
+
+      setStats({
+        totalProducts: productCount || 0,
+        totalOrders: orderData?.length || 0,
+        totalRevenue,
+        lowStockCount: lowStockCount || 0,
+      })
     } catch (error) {
       console.error("Error fetching stats:", error)
     }
@@ -168,85 +222,83 @@ export default function AdminDashboard() {
     e.preventDefault()
 
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/admin/products", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          ...newProduct,
-          price: Number.parseFloat(newProduct.price),
-          originalPrice: newProduct.originalPrice ? Number.parseFloat(newProduct.originalPrice) : null,
-          stock: Number.parseInt(newProduct.stock),
-          sizes: newProduct.sizes.split(",").map((s) => s.trim()),
-          colors: newProduct.colors.split(",").map((c) => c.trim()),
-          images: newProduct.images.split(",").map((i) => i.trim()),
-        }),
+      const productData = {
+        name: newProduct.name,
+        description: newProduct.description,
+        price: Number.parseFloat(newProduct.price),
+        original_price: newProduct.original_price ? Number.parseFloat(newProduct.original_price) : null,
+        category_id: newProduct.category_id,
+        theme_id: newProduct.theme_id || null,
+        gender: newProduct.gender,
+        stock: Number.parseInt(newProduct.stock),
+        sizes: newProduct.sizes.split(",").map((s) => s.trim()),
+        colors: newProduct.colors.split(",").map((c) => c.trim()),
+        images: newProduct.images.split(",").map((i) => i.trim()),
+        is_active: true,
+        is_featured: false,
+        is_on_sale: !!newProduct.original_price,
+      }
+
+      const { error } = await supabase.from("products").insert([productData])
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Product added successfully",
       })
 
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Product added successfully",
-        })
-        setNewProduct({
-          name: "",
-          description: "",
-          price: "",
-          originalPrice: "",
-          category: "",
-          gender: "",
-          sizes: "",
-          colors: "",
-          stock: "",
-          images: "",
-        })
-        fetchProducts()
-        fetchStats()
-      } else {
-        throw new Error("Failed to add product")
-      }
-    } catch (error) {
+      setNewProduct({
+        name: "",
+        description: "",
+        price: "",
+        original_price: "",
+        category_id: "",
+        theme_id: "",
+        gender: "",
+        sizes: "",
+        colors: "",
+        stock: "",
+        images: "",
+      })
+
+      fetchProducts()
+      fetchStats()
+    } catch (error: any) {
       console.error("Error adding product:", error)
       toast({
         title: "Error",
-        description: "Failed to add product",
+        description: error.message || "Failed to add product",
         variant: "destructive",
       })
     }
   }
 
-  const handleAddCollection = async (e: React.FormEvent) => {
+  const handleAddTheme = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/admin/collections", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(newCollection),
+      const { error } = await supabase.from("themes").insert([newTheme])
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Theme added successfully",
       })
 
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Collection added successfully",
-        })
-        setNewCollection({
-          name: "",
-          description: "",
-          image_url: "",
-        })
-        fetchCollections()
-      } else {
-        throw new Error("Failed to add collection")
-      }
-    } catch (error) {
-      console.error("Error adding collection:", error)
+      setNewTheme({
+        name: "",
+        description: "",
+        image_url: "",
+      })
+
+      fetchThemes()
+    } catch (error: any) {
+      console.error("Error adding theme:", error)
       toast({
         title: "Error",
-        description: "Failed to add collection",
+        description: error.message || "Failed to add theme",
         variant: "destructive",
       })
     }
@@ -254,50 +306,44 @@ export default function AdminDashboard() {
 
   const handleDeleteProduct = async (productId: string) => {
     try {
-      const response = await fetch(`https://stitchpop-ecommerce.onrender.com/api/admin/products/${productId}`, {
-        method: "DELETE",
+      const { error } = await supabase.from("products").delete().eq("id", productId)
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Product deleted successfully",
       })
 
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Product deleted successfully",
-        })
-        fetchProducts()
-        fetchStats()
-      } else {
-        throw new Error("Failed to delete product")
-      }
-    } catch (error) {
+      fetchProducts()
+      fetchStats()
+    } catch (error: any) {
       console.error("Error deleting product:", error)
       toast({
         title: "Error",
-        description: "Failed to delete product",
+        description: error.message || "Failed to delete product",
         variant: "destructive",
       })
     }
   }
 
-  const handleDeleteCollection = async (collectionId: string) => {
+  const handleDeleteTheme = async (themeId: string) => {
     try {
-      const response = await fetch(`https://stitchpop-ecommerce.onrender.com/api/admin/collections/${collectionId}`, {
-        method: "DELETE",
+      const { error } = await supabase.from("themes").delete().eq("id", themeId)
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Theme deleted successfully",
       })
 
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Collection deleted successfully",
-        })
-        fetchCollections()
-      } else {
-        throw new Error("Failed to delete collection")
-      }
-    } catch (error) {
-      console.error("Error deleting collection:", error)
+      fetchThemes()
+    } catch (error: any) {
+      console.error("Error deleting theme:", error)
       toast({
         title: "Error",
-        description: "Failed to delete collection",
+        description: error.message || "Failed to delete theme",
         variant: "destructive",
       })
     }
@@ -306,7 +352,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600"></div>
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     )
   }
@@ -360,17 +406,11 @@ export default function AdminDashboard() {
         </div>
 
         {/* Low Stock Alert */}
-        {lowStockProducts.length > 0 && (
+        {stats.lowStockCount > 0 && (
           <Alert className="mb-8 border-orange-200 bg-orange-50">
             <AlertTriangle className="h-4 w-4 text-orange-600" />
             <AlertDescription className="text-orange-800">
-              <strong>{lowStockProducts.length} products</strong> are running low on stock (≤5 items remaining).
-              Consider restocking:{" "}
-              {lowStockProducts
-                .slice(0, 3)
-                .map((p) => p.name)
-                .join(", ")}
-              {lowStockProducts.length > 3 && ` and ${lowStockProducts.length - 3} more`}.
+              <strong>{stats.lowStockCount} products</strong> are running low on stock (≤5 items remaining).
             </AlertDescription>
           </Alert>
         )}
@@ -379,9 +419,9 @@ export default function AdminDashboard() {
         <Tabs defaultValue="products" className="space-y-6">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="products">Products</TabsTrigger>
-            <TabsTrigger value="collections">Collections</TabsTrigger>
+            <TabsTrigger value="themes">Themes</TabsTrigger>
+            <TabsTrigger value="categories">Categories</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           {/* Products Tab */}
@@ -412,24 +452,67 @@ export default function AdminDashboard() {
                         />
                       </div>
                       <div>
+                        <Label htmlFor="gender">Gender</Label>
+                        <Select
+                          value={newProduct.gender}
+                          onValueChange={(value) => setNewProduct({ ...newProduct, gender: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="men">Men</SelectItem>
+                            <SelectItem value="women">Women</SelectItem>
+                            <SelectItem value="kids">Kids</SelectItem>
+                            <SelectItem value="couple">Couple</SelectItem>
+                            <SelectItem value="unisex">Unisex</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
                         <Label htmlFor="category">Category</Label>
                         <Select
-                          value={newProduct.category}
-                          onValueChange={(value) => setNewProduct({ ...newProduct, category: value })}
+                          value={newProduct.category_id}
+                          onValueChange={(value) => setNewProduct({ ...newProduct, category_id: value })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select category" />
                           </SelectTrigger>
                           <SelectContent>
-                            <SelectItem value="t-shirts">T-Shirts</SelectItem>
-                            <SelectItem value="shirts">Shirts</SelectItem>
-                            <SelectItem value="jeans">Jeans</SelectItem>
-                            <SelectItem value="dresses">Dresses</SelectItem>
-                            <SelectItem value="tops">Tops</SelectItem>
+                            {categories
+                              .filter((cat) => cat.gender === newProduct.gender)
+                              .map((category) => (
+                                <SelectItem key={category.id} value={category.id}>
+                                  {category.name}
+                                </SelectItem>
+                              ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div>
+                        <Label htmlFor="theme">Theme (Optional)</Label>
+                        <Select
+                          value={newProduct.theme_id}
+                          onValueChange={(value) => setNewProduct({ ...newProduct, theme_id: value })}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select theme" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="none">No Theme</SelectItem>
+                            {themes.map((theme) => (
+                              <SelectItem key={theme.id} value={theme.id}>
+                                {theme.name}
+                              </SelectItem>
+                            ))}
                           </SelectContent>
                         </Select>
                       </div>
                     </div>
+
                     <div>
                       <Label htmlFor="description">Description</Label>
                       <Textarea
@@ -439,6 +522,7 @@ export default function AdminDashboard() {
                         required
                       />
                     </div>
+
                     <div className="grid grid-cols-3 gap-4">
                       <div>
                         <Label htmlFor="price">Price (₹)</Label>
@@ -455,8 +539,8 @@ export default function AdminDashboard() {
                         <Input
                           id="originalPrice"
                           type="number"
-                          value={newProduct.originalPrice}
-                          onChange={(e) => setNewProduct({ ...newProduct, originalPrice: e.target.value })}
+                          value={newProduct.original_price}
+                          onChange={(e) => setNewProduct({ ...newProduct, original_price: e.target.value })}
                         />
                       </div>
                       <div>
@@ -470,23 +554,8 @@ export default function AdminDashboard() {
                         />
                       </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="gender">Gender</Label>
-                        <Select
-                          value={newProduct.gender}
-                          onValueChange={(value) => setNewProduct({ ...newProduct, gender: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select gender" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="men">Men</SelectItem>
-                            <SelectItem value="women">Women</SelectItem>
-                            <SelectItem value="unisex">Unisex</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
                       <div>
                         <Label htmlFor="sizes">Sizes (comma separated)</Label>
                         <Input
@@ -497,17 +566,18 @@ export default function AdminDashboard() {
                           required
                         />
                       </div>
+                      <div>
+                        <Label htmlFor="colors">Colors (comma separated)</Label>
+                        <Input
+                          id="colors"
+                          placeholder="Black, White, Gray"
+                          value={newProduct.colors}
+                          onChange={(e) => setNewProduct({ ...newProduct, colors: e.target.value })}
+                          required
+                        />
+                      </div>
                     </div>
-                    <div>
-                      <Label htmlFor="colors">Colors (comma separated)</Label>
-                      <Input
-                        id="colors"
-                        placeholder="Black, White, Gray"
-                        value={newProduct.colors}
-                        onChange={(e) => setNewProduct({ ...newProduct, colors: e.target.value })}
-                        required
-                      />
-                    </div>
+
                     <div>
                       <Label htmlFor="images">Image URLs (comma separated)</Label>
                       <Input
@@ -518,6 +588,7 @@ export default function AdminDashboard() {
                         required
                       />
                     </div>
+
                     <Button type="submit" className="w-full">
                       Add Product
                     </Button>
@@ -532,7 +603,7 @@ export default function AdminDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Name</TableHead>
-                      <TableHead>Category</TableHead>
+                      <TableHead>Gender</TableHead>
                       <TableHead>Price</TableHead>
                       <TableHead>Stock</TableHead>
                       <TableHead>Status</TableHead>
@@ -543,7 +614,7 @@ export default function AdminDashboard() {
                     {products.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell className="capitalize">{product.category}</TableCell>
+                        <TableCell className="capitalize">{product.gender}</TableCell>
                         <TableCell>₹{product.price}</TableCell>
                         <TableCell>
                           <span className={product.stock <= 5 ? "text-red-600 font-medium" : ""}>{product.stock}</span>
@@ -575,52 +646,50 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Collections Tab */}
-          <TabsContent value="collections" className="space-y-6">
+          {/* Themes Tab */}
+          <TabsContent value="themes" className="space-y-6">
             <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Collections</h2>
+              <h2 className="text-2xl font-bold">Themes</h2>
               <Dialog>
                 <DialogTrigger asChild>
                   <Button>
                     <Plus className="h-4 w-4 mr-2" />
-                    Add Collection
+                    Add Theme
                   </Button>
                 </DialogTrigger>
                 <DialogContent>
                   <DialogHeader>
-                    <DialogTitle>Add New Collection</DialogTitle>
-                    <DialogDescription>Create a new collection for your store</DialogDescription>
+                    <DialogTitle>Add New Theme</DialogTitle>
+                    <DialogDescription>Create a new theme for your products</DialogDescription>
                   </DialogHeader>
-                  <form onSubmit={handleAddCollection} className="space-y-4">
+                  <form onSubmit={handleAddTheme} className="space-y-4">
                     <div>
-                      <Label htmlFor="collectionName">Collection Name</Label>
+                      <Label htmlFor="themeName">Theme Name</Label>
                       <Input
-                        id="collectionName"
-                        value={newCollection.name}
-                        onChange={(e) => setNewCollection({ ...newCollection, name: e.target.value })}
+                        id="themeName"
+                        value={newTheme.name}
+                        onChange={(e) => setNewTheme({ ...newTheme, name: e.target.value })}
                         required
                       />
                     </div>
                     <div>
-                      <Label htmlFor="collectionDescription">Description</Label>
+                      <Label htmlFor="themeDescription">Description</Label>
                       <Textarea
-                        id="collectionDescription"
-                        value={newCollection.description}
-                        onChange={(e) => setNewCollection({ ...newCollection, description: e.target.value })}
-                        required
+                        id="themeDescription"
+                        value={newTheme.description}
+                        onChange={(e) => setNewTheme({ ...newTheme, description: e.target.value })}
                       />
                     </div>
                     <div>
-                      <Label htmlFor="collectionImage">Image URL</Label>
+                      <Label htmlFor="themeImage">Image URL</Label>
                       <Input
-                        id="collectionImage"
-                        value={newCollection.image_url}
-                        onChange={(e) => setNewCollection({ ...newCollection, image_url: e.target.value })}
-                        required
+                        id="themeImage"
+                        value={newTheme.image_url}
+                        onChange={(e) => setNewTheme({ ...newTheme, image_url: e.target.value })}
                       />
                     </div>
                     <Button type="submit" className="w-full">
-                      Add Collection
+                      Add Theme
                     </Button>
                   </form>
                 </DialogContent>
@@ -628,22 +697,20 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {collections.map((collection) => (
-                <Card key={collection.id}>
+              {themes.map((theme) => (
+                <Card key={theme.id}>
                   <CardContent className="p-4">
-                    <img
-                      src={collection.image_url || "/placeholder.svg"}
-                      alt={collection.name}
-                      className="w-full h-48 object-cover rounded-lg mb-4"
-                    />
-                    <h3 className="font-semibold text-lg mb-2">{collection.name}</h3>
-                    <p className="text-gray-600 text-sm mb-4">{collection.description}</p>
+                    <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center">
+                      {theme.name}
+                    </div>
+                    <h3 className="font-semibold text-lg mb-2">{theme.name}</h3>
+                    <p className="text-gray-600 text-sm mb-4">{theme.description}</p>
                     <div className="flex space-x-2">
                       <Button variant="outline" size="sm" className="flex-1 bg-transparent">
                         <Edit className="h-4 w-4 mr-2" />
                         Edit
                       </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDeleteCollection(collection.id)}>
+                      <Button variant="outline" size="sm" onClick={() => handleDeleteTheme(theme.id)}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </div>
@@ -651,6 +718,39 @@ export default function AdminDashboard() {
                 </Card>
               ))}
             </div>
+          </TabsContent>
+
+          {/* Categories Tab */}
+          <TabsContent value="categories" className="space-y-6">
+            <h2 className="text-2xl font-bold">Categories</h2>
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Gender</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {categories.map((category) => (
+                      <TableRow key={category.id}>
+                        <TableCell className="font-medium">{category.name}</TableCell>
+                        <TableCell className="capitalize">{category.gender}</TableCell>
+                        <TableCell>{category.description}</TableCell>
+                        <TableCell>
+                          <Badge variant={category.is_active ? "default" : "secondary"}>
+                            {category.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           {/* Orders Tab */}
@@ -662,23 +762,22 @@ export default function AdminDashboard() {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Order ID</TableHead>
-                      <TableHead>Customer</TableHead>
+                      <TableHead>User ID</TableHead>
                       <TableHead>Amount</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead>Date</TableHead>
-                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {orders.map((order) => (
                       <TableRow key={order.id}>
                         <TableCell className="font-medium">#{order.id.slice(0, 8)}</TableCell>
-                        <TableCell>{order.user_email}</TableCell>
-                        <TableCell>₹{order.total_amount}</TableCell>
+                        <TableCell>{order.user_id.slice(0, 8)}</TableCell>
+                        <TableCell>₹{order.total}</TableCell>
                         <TableCell>
                           <Badge
                             variant={
-                              order.status === "completed"
+                              order.status === "delivered"
                                 ? "default"
                                 : order.status === "pending"
                                   ? "secondary"
@@ -689,42 +788,12 @@ export default function AdminDashboard() {
                           </Badge>
                         </TableCell>
                         <TableCell>{new Date(order.created_at).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <Button variant="outline" size="sm">
-                            View Details
-                          </Button>
-                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
                 </Table>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <h2 className="text-2xl font-bold">Analytics</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle>Sales Overview</CardTitle>
-                  <CardDescription>Monthly sales performance</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-gray-500">Analytics charts will be implemented here</div>
-                </CardContent>
-              </Card>
-              <Card>
-                <CardHeader>
-                  <CardTitle>Top Products</CardTitle>
-                  <CardDescription>Best selling products this month</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="text-center py-8 text-gray-500">Top products list will be implemented here</div>
-                </CardContent>
-              </Card>
-            </div>
           </TabsContent>
         </Tabs>
       </div>
