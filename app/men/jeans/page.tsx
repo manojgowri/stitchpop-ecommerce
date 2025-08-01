@@ -1,120 +1,94 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
-import { useRouter } from "next/navigation"
-import Image from "next/image"
-import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
 import { Star, Filter } from "lucide-react"
-import { createClient } from "@/lib/supabase"
-import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
+import { supabase } from "@/lib/supabase"
 
 interface Product {
   id: string
   name: string
   description: string
   price: number
-  originalPrice?: number
+  original_price: number | null
   images: string[]
-  rating: number
   sizes: string[]
   colors: string[]
   stock: number
-  category: string
-  gender: string
+  rating: number
+  is_on_sale: boolean
+  theme: {
+    name: string
+  } | null
 }
 
 export default function MenJeansPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState("featured")
-  const [hoveredProduct, setHoveredProduct] = useState<string | null>(null)
-  const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 })
-  const [user, setUser] = useState<any>(null)
-  const router = useRouter()
-  const { toast } = useToast()
+  const [filterByTheme, setFilterByTheme] = useState("all")
+  const [themes, setThemes] = useState<{ id: string; name: string }[]>([])
 
   useEffect(() => {
-    const getUser = async () => {
-      const supabase = createClient()
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setUser(session?.user || null)
-    }
-    getUser()
     fetchProducts()
-  }, [])
+    fetchThemes()
+  }, [sortBy, filterByTheme])
 
-  useEffect(() => {
-    if (sortBy) {
-      sortProducts(sortBy)
+  const fetchThemes = async () => {
+    try {
+      const { data, error } = await supabase.from("themes").select("id, name").eq("is_active", true)
+
+      if (error) throw error
+      setThemes(data || [])
+    } catch (error) {
+      console.error("Error fetching themes:", error)
     }
-  }, [sortBy])
+  }
 
   const fetchProducts = async () => {
     try {
-      // Mock data for jeans
-      setProducts([
-        {
-          id: "jeans-1",
-          name: "Classic Blue Jeans",
-          description: "Premium denim jeans with perfect fit and comfort",
-          price: 1299,
-          originalPrice: 1999,
-          images: [
-            "/placeholder.svg?height=300&width=250&text=Blue+Jeans+Front",
-            "/placeholder.svg?height=300&width=250&text=Blue+Jeans+Side",
-            "/placeholder.svg?height=300&width=250&text=Blue+Jeans+Back",
-          ],
-          rating: 4.5,
-          sizes: ["28", "30", "32", "34", "36", "38"],
-          colors: ["Blue", "Dark Blue", "Black"],
-          stock: 35,
-          category: "jeans",
-          gender: "men",
-        },
-        {
-          id: "jeans-2",
-          name: "Slim Fit Black Jeans",
-          description: "Modern slim fit jeans for a contemporary look",
-          price: 1499,
-          originalPrice: 2299,
-          images: [
-            "/placeholder.svg?height=300&width=250&text=Black+Jeans+Front",
-            "/placeholder.svg?height=300&width=250&text=Black+Jeans+Side",
-            "/placeholder.svg?height=300&width=250&text=Black+Jeans+Back",
-          ],
-          rating: 4.7,
-          sizes: ["28", "30", "32", "34", "36"],
-          colors: ["Black", "Charcoal", "Navy"],
-          stock: 28,
-          category: "jeans",
-          gender: "men",
-        },
-        {
-          id: "jeans-3",
-          name: "Distressed Denim",
-          description: "Trendy distressed jeans for a casual street style",
-          price: 1699,
-          originalPrice: 2499,
-          images: [
-            "/placeholder.svg?height=300&width=250&text=Distressed+Front",
-            "/placeholder.svg?height=300&width=250&text=Distressed+Side",
-            "/placeholder.svg?height=300&width=250&text=Distressed+Back",
-          ],
-          rating: 4.3,
-          sizes: ["28", "30", "32", "34", "36"],
-          colors: ["Light Blue", "Medium Blue"],
-          stock: 22,
-          category: "jeans",
-          gender: "men",
-        },
-      ])
+      let query = supabase
+        .from("products")
+        .select(`
+          *,
+          categories!inner(name),
+          themes(name)
+        `)
+        .eq("gender", "men")
+        .eq("categories.name", "Jeans")
+        .eq("is_active", true)
+
+      if (filterByTheme !== "all") {
+        query = query.eq("theme_id", filterByTheme)
+      }
+
+      // Apply sorting
+      switch (sortBy) {
+        case "price-low":
+          query = query.order("price", { ascending: true })
+          break
+        case "price-high":
+          query = query.order("price", { ascending: false })
+          break
+        case "rating":
+          query = query.order("rating", { ascending: false })
+          break
+        case "newest":
+          query = query.order("created_at", { ascending: false })
+          break
+        default:
+          query = query.order("is_featured", { ascending: false })
+      }
+
+      const { data, error } = await query
+
+      if (error) throw error
+      setProducts(data || [])
     } catch (error) {
       console.error("Error fetching products:", error)
     } finally {
@@ -122,59 +96,31 @@ export default function MenJeansPage() {
     }
   }
 
-  const sortProducts = (sortType: string) => {
-    const sorted = [...products].sort((a, b) => {
-      switch (sortType) {
-        case "price-low":
-          return a.price - b.price
-        case "price-high":
-          return b.price - a.price
-        case "rating":
-          return b.rating - a.rating
-        case "newest":
-          return b.id.localeCompare(a.id)
-        default:
-          return 0
-      }
-    })
-    setProducts(sorted)
-  }
-
-  const handleMouseMove = (e: React.MouseEvent, productId: string) => {
-    const rect = e.currentTarget.getBoundingClientRect()
-    const x = e.clientX - rect.left
-    const width = rect.width
-    setMousePosition({ x: x / width, y: 0 })
-    setHoveredProduct(productId)
-  }
-
-  const getImageIndex = (mouseX: number) => {
-    if (mouseX < 0.33) return 0
-    if (mouseX < 0.66) return 1
-    return 2
-  }
-
-  const handleAddToCart = async (product: Product) => {
-    if (!user) {
-      toast({
-        title: "Sign in required",
-        description: "Please sign in to add items to your cart",
-        variant: "destructive",
-      })
-      router.push("/auth/login")
-      return
-    }
-
-    toast({
-      title: "Success",
-      description: "Item added to cart",
-    })
-  }
+  const ProductSkeleton = () => (
+    <Card className="overflow-hidden">
+      <Skeleton className="h-64 w-full" />
+      <CardContent className="p-4">
+        <Skeleton className="h-4 w-3/4 mb-2" />
+        <Skeleton className="h-3 w-1/2 mb-2" />
+        <Skeleton className="h-4 w-1/4" />
+      </CardContent>
+    </Card>
+  )
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-orange-600"></div>
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <div className="mb-8">
+            <Skeleton className="h-8 w-48 mb-4" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Array.from({ length: 8 }).map((_, i) => (
+              <ProductSkeleton key={i} />
+            ))}
+          </div>
+        </div>
       </div>
     )
   }
@@ -185,106 +131,111 @@ export default function MenJeansPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">Men's Jeans</h1>
-          <p className="text-gray-600">Discover our collection of premium jeans for men</p>
+          <p className="text-gray-600">Premium denim collection with perfect fits and styles</p>
         </div>
 
         {/* Filters and Sorting */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 space-y-4 sm:space-y-0">
-          <div className="flex items-center space-x-2">
-            <Filter className="h-5 w-5 text-gray-600" />
-            <span className="text-gray-600">{products.length} products</span>
+        <div className="flex flex-col sm:flex-row gap-4 mb-8">
+          <div className="flex items-center gap-2">
+            <Filter className="h-4 w-4" />
+            <Select value={filterByTheme} onValueChange={setFilterByTheme}>
+              <SelectTrigger className="w-48">
+                <SelectValue placeholder="Filter by theme" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Themes</SelectItem>
+                {themes.map((theme) => (
+                  <SelectItem key={theme.id} value={theme.id}>
+                    {theme.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
+
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-48">
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="featured">Featured</SelectItem>
+              <SelectItem value="newest">Newest</SelectItem>
               <SelectItem value="price-low">Price: Low to High</SelectItem>
               <SelectItem value="price-high">Price: High to Low</SelectItem>
               <SelectItem value="rating">Highest Rated</SelectItem>
-              <SelectItem value="newest">Newest</SelectItem>
             </SelectContent>
           </Select>
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
-              <div
-                className="relative overflow-hidden cursor-pointer"
-                onMouseMove={(e) => handleMouseMove(e, product.id)}
-                onMouseLeave={() => setHoveredProduct(null)}
-                onClick={() => router.push(`/product/${product.id}`)}
-              >
-                <Image
-                  src={
-                    hoveredProduct === product.id && product.images.length > 1
-                      ? product.images[getImageIndex(mousePosition.x)]
-                      : product.images[0]
-                  }
-                  alt={product.name}
-                  width={250}
-                  height={300}
-                  className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                {product.originalPrice && (
-                  <Badge className="absolute top-2 left-2 bg-red-500">
-                    {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-                  </Badge>
-                )}
-                {product.stock <= 5 && product.stock > 0 && (
-                  <Badge className="absolute top-2 right-2 bg-orange-500">Low Stock</Badge>
-                )}
-                {product.stock === 0 && <Badge className="absolute top-2 right-2 bg-gray-500">Out of Stock</Badge>}
-              </div>
-              <CardContent className="p-4">
-                <h3 className="font-semibold text-sm mb-2 line-clamp-2">{product.name}</h3>
-                <div className="flex items-center mb-2">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-3 w-3 ${
-                          i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-xs text-gray-600 ml-1">({product.rating})</span>
+        {products.length === 0 ? (
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">No jeans found matching your criteria.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {products.map((product) => (
+              <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="relative">
+                  <img
+                    src={product.images[0] || "/placeholder.svg?height=300&width=250"}
+                    alt={product.name}
+                    className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
+                  />
+                  {product.is_on_sale && <Badge className="absolute top-2 left-2 bg-red-500">Sale</Badge>}
+                  {product.theme && (
+                    <Badge variant="secondary" className="absolute top-2 right-2">
+                      {product.theme.name}
+                    </Badge>
+                  )}
+                  {product.stock <= 5 && product.stock > 0 && (
+                    <Badge variant="destructive" className="absolute bottom-2 left-2">
+                      Only {product.stock} left
+                    </Badge>
+                  )}
+                  {product.stock === 0 && (
+                    <Badge variant="destructive" className="absolute bottom-2 left-2">
+                      Out of Stock
+                    </Badge>
+                  )}
                 </div>
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold text-lg">₹{product.price}</span>
-                    {product.originalPrice && (
-                      <span className="text-sm text-gray-500 line-through">₹{product.originalPrice}</span>
+                <CardContent className="p-4">
+                  <h3 className="font-semibold text-lg mb-1 line-clamp-2">{product.name}</h3>
+                  <p className="text-gray-600 text-sm mb-2 line-clamp-2">{product.description}</p>
+
+                  <div className="flex items-center gap-1 mb-2">
+                    <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                    <span className="text-sm text-gray-600">{product.rating.toFixed(1)}</span>
+                  </div>
+
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-lg font-bold">₹{product.price}</span>
+                    {product.original_price && product.is_on_sale && (
+                      <span className="text-sm text-gray-500 line-through">₹{product.original_price}</span>
                     )}
                   </div>
-                </div>
-                <div className="flex items-center justify-between">
-                  <div className="text-xs text-gray-600">
-                    {product.sizes.length} sizes, {product.colors.length} colors
-                  </div>
-                  <Button
-                    size="sm"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      handleAddToCart(product)
-                    }}
-                    disabled={product.stock === 0}
-                  >
-                    {product.stock === 0 ? "Out of Stock" : "Add to Cart"}
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
 
-        {products.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No jeans found</p>
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {product.sizes.slice(0, 4).map((size) => (
+                      <Badge key={size} variant="outline" className="text-xs">
+                        {size}
+                      </Badge>
+                    ))}
+                    {product.sizes.length > 4 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{product.sizes.length - 4}
+                      </Badge>
+                    )}
+                  </div>
+
+                  <Link href={`/product/${product.id}`}>
+                    <Button className="w-full" disabled={product.stock === 0}>
+                      {product.stock === 0 ? "Out of Stock" : "View Details"}
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
       </div>

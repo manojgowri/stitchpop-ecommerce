@@ -9,6 +9,8 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Create a singleton client for use throughout the app
+export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
+
 export function createClient() {
   return createSupabaseClient(supabaseUrl, supabaseAnonKey)
 }
@@ -82,6 +84,64 @@ export interface Database {
           updated_at?: string
         }
       }
+      themes: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          image_url: string | null
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          image_url?: string | null
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
+      categories: {
+        Row: {
+          id: string
+          name: string
+          description: string | null
+          gender: string
+          is_active: boolean
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          description?: string | null
+          gender: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          description?: string | null
+          gender?: string
+          is_active?: boolean
+          created_at?: string
+          updated_at?: string
+        }
+      }
       products: {
         Row: {
           id: string
@@ -93,11 +153,13 @@ export interface Database {
           sizes: string[]
           colors: string[]
           stock: number
-          category: string
+          category_id: string
+          theme_id: string | null
           gender: string
           rating: number
           is_featured: boolean
           is_active: boolean
+          is_on_sale: boolean
           created_at: string
           updated_at: string
         }
@@ -111,11 +173,13 @@ export interface Database {
           sizes?: string[]
           colors?: string[]
           stock?: number
-          category: string
+          category_id: string
+          theme_id?: string | null
           gender?: string
           rating?: number
           is_featured?: boolean
           is_active?: boolean
+          is_on_sale?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -129,11 +193,13 @@ export interface Database {
           sizes?: string[]
           colors?: string[]
           stock?: number
-          category?: string
+          category_id?: string
+          theme_id?: string | null
           gender?: string
           rating?: number
           is_featured?: boolean
           is_active?: boolean
+          is_on_sale?: boolean
           created_at?: string
           updated_at?: string
         }
@@ -166,35 +232,6 @@ export interface Database {
           quantity?: number
           size?: string | null
           color?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      collections: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          image_url: string | null
-          is_active: boolean
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          image_url?: string | null
-          is_active?: boolean
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          description?: string | null
-          image_url?: string | null
-          is_active?: boolean
           created_at?: string
           updated_at?: string
         }

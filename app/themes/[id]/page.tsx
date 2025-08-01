@@ -1,12 +1,13 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useParams } from "next/navigation"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Star, Filter } from "lucide-react"
+import { Star, Filter, ArrowLeft } from "lucide-react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 
@@ -22,31 +23,58 @@ interface Product {
   stock: number
   rating: number
   is_on_sale: boolean
-  theme: {
+  gender: string
+  categories: {
     name: string
-  } | null
+  }
 }
 
-export default function MenJacketsPage() {
+interface Theme {
+  id: string
+  name: string
+  description: string | null
+  image_url: string | null
+}
+
+export default function ThemeDetailPage() {
+  const params = useParams()
+  const themeId = params.id as string
+
+  const [theme, setTheme] = useState<Theme | null>(null)
   const [products, setProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
   const [sortBy, setSortBy] = useState("featured")
-  const [filterByTheme, setFilterByTheme] = useState("all")
-  const [themes, setThemes] = useState<{ id: string; name: string }[]>([])
+  const [filterByGender, setFilterByGender] = useState("all")
+  const [filterByCategory, setFilterByCategory] = useState("all")
+  const [categories, setCategories] = useState<{ name: string }[]>([])
 
   useEffect(() => {
-    fetchProducts()
-    fetchThemes()
-  }, [sortBy, filterByTheme])
+    if (themeId) {
+      fetchTheme()
+      fetchProducts()
+      fetchCategories()
+    }
+  }, [themeId, sortBy, filterByGender, filterByCategory])
 
-  const fetchThemes = async () => {
+  const fetchTheme = async () => {
     try {
-      const { data, error } = await supabase.from("themes").select("id, name").eq("is_active", true)
+      const { data, error } = await supabase.from("themes").select("*").eq("id", themeId).single()
 
       if (error) throw error
-      setThemes(data || [])
+      setTheme(data)
     } catch (error) {
-      console.error("Error fetching themes:", error)
+      console.error("Error fetching theme:", error)
+    }
+  }
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase.from("categories").select("name").eq("is_active", true)
+
+      if (error) throw error
+      setCategories(data || [])
+    } catch (error) {
+      console.error("Error fetching categories:", error)
     }
   }
 
@@ -56,15 +84,17 @@ export default function MenJacketsPage() {
         .from("products")
         .select(`
           *,
-          categories!inner(name),
-          themes(name)
+          categories!inner(name)
         `)
-        .eq("gender", "men")
-        .eq("categories.name", "Jackets")
+        .eq("theme_id", themeId)
         .eq("is_active", true)
 
-      if (filterByTheme !== "all") {
-        query = query.eq("theme_id", filterByTheme)
+      if (filterByGender !== "all") {
+        query = query.eq("gender", filterByGender)
+      }
+
+      if (filterByCategory !== "all") {
+        query = query.eq("categories.name", filterByCategory)
       }
 
       // Apply sorting
@@ -125,33 +155,85 @@ export default function MenJacketsPage() {
     )
   }
 
+  if (!theme) {
+    return (
+      <div className="min-h-screen bg-gray-50 py-8">
+        <div className="container mx-auto px-4">
+          <div className="text-center py-12">
+            <p className="text-gray-500 text-lg">Theme not found.</p>
+            <Link href="/themes">
+              <Button className="mt-4">
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back to Themes
+              </Button>
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 py-8">
       <div className="container mx-auto px-4">
-        {/* Header */}
+        {/* Back Button */}
+        <div className="mb-6">
+          <Link href="/themes">
+            <Button variant="outline">
+              <ArrowLeft className="h-4 w-4 mr-2" />
+              Back to Themes
+            </Button>
+          </Link>
+        </div>
+
+        {/* Theme Header */}
         <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Men's Jackets</h1>
-          <p className="text-gray-600">Stylish outerwear for every season and occasion</p>
+          <div className="relative h-64 rounded-lg overflow-hidden mb-6">
+            <img
+              src={theme.image_url || "/placeholder.svg?height=300&width=800&text=" + encodeURIComponent(theme.name)}
+              alt={theme.name}
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+              <div className="text-center text-white">
+                <h1 className="text-4xl font-bold mb-2">{theme.name}</h1>
+                <p className="text-lg">{theme.description}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Filters and Sorting */}
         <div className="flex flex-col sm:flex-row gap-4 mb-8">
           <div className="flex items-center gap-2">
             <Filter className="h-4 w-4" />
-            <Select value={filterByTheme} onValueChange={setFilterByTheme}>
+            <Select value={filterByGender} onValueChange={setFilterByGender}>
               <SelectTrigger className="w-48">
-                <SelectValue placeholder="Filter by theme" />
+                <SelectValue placeholder="Filter by gender" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Themes</SelectItem>
-                {themes.map((theme) => (
-                  <SelectItem key={theme.id} value={theme.id}>
-                    {theme.name}
-                  </SelectItem>
-                ))}
+                <SelectItem value="all">All Genders</SelectItem>
+                <SelectItem value="men">Men</SelectItem>
+                <SelectItem value="women">Women</SelectItem>
+                <SelectItem value="kids">Kids</SelectItem>
+                <SelectItem value="couple">Couple</SelectItem>
               </SelectContent>
             </Select>
           </div>
+
+          <Select value={filterByCategory} onValueChange={setFilterByCategory}>
+            <SelectTrigger className="w-48">
+              <SelectValue placeholder="Filter by category" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {categories.map((category) => (
+                <SelectItem key={category.name} value={category.name}>
+                  {category.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
           <Select value={sortBy} onValueChange={setSortBy}>
             <SelectTrigger className="w-48">
@@ -170,7 +252,7 @@ export default function MenJacketsPage() {
         {/* Products Grid */}
         {products.length === 0 ? (
           <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No jackets found matching your criteria.</p>
+            <p className="text-gray-500 text-lg">No products found in this theme matching your criteria.</p>
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -183,11 +265,9 @@ export default function MenJacketsPage() {
                     className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
                   />
                   {product.is_on_sale && <Badge className="absolute top-2 left-2 bg-red-500">Sale</Badge>}
-                  {product.theme && (
-                    <Badge variant="secondary" className="absolute top-2 right-2">
-                      {product.theme.name}
-                    </Badge>
-                  )}
+                  <Badge variant="secondary" className="absolute top-2 right-2 capitalize">
+                    {product.gender}
+                  </Badge>
                   {product.stock <= 5 && product.stock > 0 && (
                     <Badge variant="destructive" className="absolute bottom-2 left-2">
                       Only {product.stock} left
@@ -206,6 +286,7 @@ export default function MenJacketsPage() {
                   <div className="flex items-center gap-1 mb-2">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
                     <span className="text-sm text-gray-600">{product.rating.toFixed(1)}</span>
+                    <span className="text-xs text-gray-500 ml-2 capitalize">{product.categories.name}</span>
                   </div>
 
                   <div className="flex items-center gap-2 mb-3">
