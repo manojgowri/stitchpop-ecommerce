@@ -23,13 +23,37 @@ export default function ResetPasswordPage() {
   const searchParams = useSearchParams()
 
   useEffect(() => {
-    // Check if we have the necessary tokens from the URL
-    const accessToken = searchParams.get("access_token")
-    const refreshToken = searchParams.get("refresh_token")
+    // Handle the auth callback from URL hash
+    const handleAuthCallback = async () => {
+      const hashParams = new URLSearchParams(window.location.hash.substring(1))
+      const accessToken = hashParams.get("access_token")
+      const refreshToken = hashParams.get("refresh_token")
 
-    if (!accessToken || !refreshToken) {
-      setError("Invalid reset link. Please request a new password reset.")
+      if (accessToken && refreshToken) {
+        try {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          })
+
+          if (error) {
+            setError("Invalid reset link. Please request a new password reset.")
+          }
+        } catch (err) {
+          setError("Invalid reset link. Please request a new password reset.")
+        }
+      } else {
+        // Check URL params as fallback
+        const accessToken = searchParams.get("access_token")
+        const refreshToken = searchParams.get("refresh_token")
+
+        if (!accessToken || !refreshToken) {
+          setError("Invalid reset link. Please request a new password reset.")
+        }
+      }
     }
+
+    handleAuthCallback()
   }, [searchParams])
 
   const handleSubmit = async (e: React.FormEvent) => {

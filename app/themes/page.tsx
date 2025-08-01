@@ -1,11 +1,10 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import Link from "next/link"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
 import { Skeleton } from "@/components/ui/skeleton"
-import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 
 interface Theme {
@@ -13,7 +12,8 @@ interface Theme {
   name: string
   description: string | null
   image_url: string | null
-  product_count: number
+  is_active: boolean
+  product_count?: number
 }
 
 export default function ThemesPage() {
@@ -26,24 +26,34 @@ export default function ThemesPage() {
 
   const fetchThemes = async () => {
     try {
-      const { data, error } = await supabase
+      // Fetch themes with product count
+      const { data: themesData, error } = await supabase
         .from("themes")
         .select(`
           *,
-          products!inner(id)
+          products!inner(count)
         `)
         .eq("is_active", true)
 
       if (error) throw error
 
-      // Count products for each theme
-      const themesWithCount =
-        data?.map((theme) => ({
-          ...theme,
-          product_count: theme.products?.length || 0,
-        })) || []
+      // Process the data to get product counts
+      const themesWithCounts = await Promise.all(
+        (themesData || []).map(async (theme) => {
+          const { count } = await supabase
+            .from("products")
+            .select("*", { count: "exact", head: true })
+            .eq("theme_id", theme.id)
+            .eq("is_active", true)
 
-      setThemes(themesWithCount)
+          return {
+            ...theme,
+            product_count: count || 0,
+          }
+        }),
+      )
+
+      setThemes(themesWithCounts)
     } catch (error) {
       console.error("Error fetching themes:", error)
     } finally {
@@ -51,77 +61,72 @@ export default function ThemesPage() {
     }
   }
 
-  const ThemeSkeleton = () => (
-    <Card className="overflow-hidden">
-      <Skeleton className="h-48 w-full" />
-      <CardContent className="p-6">
-        <Skeleton className="h-6 w-3/4 mb-2" />
-        <Skeleton className="h-4 w-1/2 mb-4" />
-        <Skeleton className="h-10 w-full" />
-      </CardContent>
-    </Card>
-  )
-
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-50 py-8">
-        <div className="container mx-auto px-4">
-          <div className="mb-8">
-            <Skeleton className="h-8 w-64 mb-4" />
-            <Skeleton className="h-4 w-96" />
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {Array.from({ length: 6 }).map((_, i) => (
-              <ThemeSkeleton key={i} />
-            ))}
-          </div>
+      <div className="container mx-auto px-4 py-8">
+        <div className="mb-8">
+          <Skeleton className="h-8 w-48 mb-2" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Card key={i} className="overflow-hidden">
+              <Skeleton className="h-48 w-full" />
+              <CardContent className="p-4">
+                <Skeleton className="h-6 w-32 mb-2" />
+                <Skeleton className="h-4 w-full mb-2" />
+                <Skeleton className="h-4 w-24" />
+              </CardContent>
+            </Card>
+          ))}
         </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold mb-2">Themed Collections</h1>
-          <p className="text-gray-600">Discover our curated themed merchandise collections</p>
-        </div>
-
-        {/* Themes Grid */}
-        {themes.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 text-lg">No themes available at the moment.</p>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {themes.map((theme) => (
-              <Card key={theme.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="relative">
-                  <img
-                    src={
-                      theme.image_url || "/placeholder.svg?height=200&width=400&text=" + encodeURIComponent(theme.name)
-                    }
-                    alt={theme.name}
-                    className="w-full h-48 object-cover group-hover:scale-105 transition-transform duration-300"
-                  />
-                  <Badge className="absolute top-2 right-2 bg-black/70 text-white">{theme.product_count} items</Badge>
-                </div>
-                <CardContent className="p-6">
-                  <h3 className="font-bold text-xl mb-2">{theme.name}</h3>
-                  <p className="text-gray-600 text-sm mb-4 line-clamp-2">
-                    {theme.description || "Explore this amazing collection"}
-                  </p>
-                  <Link href={`/themes/${theme.id}`}>
-                    <Button className="w-full">Explore Collection</Button>
-                  </Link>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+    <div className="container mx-auto px-4 py-8">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold mb-2">Themed Collections</h1>
+        <p className="text-muted-foreground">
+          Discover our curated themed collections featuring the latest trends and styles
+        </p>
       </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {themes.map((theme) => (
+          <Link key={theme.id} href={`/themes/${theme.id}`}>
+            <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
+              <div className="aspect-video relative bg-gradient-to-br from-primary/20 to-primary/5">
+                {theme.image_url ? (
+                  <img
+                    src={theme.image_url || "/placeholder.svg"}
+                    alt={theme.name}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center">
+                    <span className="text-4xl font-bold text-primary/30">{theme.name.charAt(0)}</span>
+                  </div>
+                )}
+              </div>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-lg font-semibold">{theme.name}</h3>
+                  <Badge variant="secondary">{theme.product_count} items</Badge>
+                </div>
+                {theme.description && <p className="text-sm text-muted-foreground line-clamp-2">{theme.description}</p>}
+              </CardContent>
+            </Card>
+          </Link>
+        ))}
+      </div>
+
+      {themes.length === 0 && (
+        <div className="text-center py-12">
+          <p className="text-muted-foreground">No themes available at the moment.</p>
+        </div>
+      )}
     </div>
   )
 }

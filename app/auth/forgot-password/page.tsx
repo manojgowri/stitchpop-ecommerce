@@ -25,8 +25,14 @@ export default function ForgotPasswordPage() {
     setMessage("")
 
     try {
+      // Get the current domain dynamically
+      const redirectUrl =
+        typeof window !== "undefined"
+          ? `${window.location.origin}/auth/reset-password`
+          : "https://stitchpop.vercel.app/auth/reset-password"
+
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+        redirectTo: redirectUrl,
       })
 
       if (error) throw error
