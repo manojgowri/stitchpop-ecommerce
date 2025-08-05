@@ -1,16 +1,15 @@
 "use client"
 
-import type React from "react"
-
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
-import { User, Mail, Calendar, Shield } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
+import { User, Mail, Calendar, Shield, Settings, Package } from 'lucide-react'
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
@@ -20,6 +19,8 @@ interface UserProfile {
   name: string
   is_admin: boolean
   created_at: string
+  phone?: string
+  address?: string
 }
 
 export default function ProfilePage() {
@@ -27,15 +28,20 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
   const [updating, setUpdating] = useState(false)
-  const [name, setName] = useState("")
+  const [formData, setFormData] = useState({
+    name: "",
+    phone: "",
+    address: "",
+  })
+
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    checkAuth()
+    checkUser()
   }, [])
 
-  const checkAuth = async () => {
+  const checkUser = async () => {
     try {
       const {
         data: { session },
@@ -48,7 +54,7 @@ export default function ProfilePage() {
 
       setUser(session.user)
 
-      // Get user profile from users table
+      // Fetch user profile from database
       const { data: profileData, error } = await supabase
         .from("users")
         .select("*")
@@ -56,11 +62,13 @@ export default function ProfilePage() {
         .single()
 
       if (error) {
-        // If user doesn't exist in users table, create them
-        const { data: newProfile, error: insertError } = await supabase
+        console.error("Error fetching profile:", error)
+        // Create profile if it doesn't exist
+        const { data: newProfile, error: createError } = await supabase
           .from("users")
           .insert([
             {
+              id: session.user.id,
               email: session.user.email,
               name: session.user.user_metadata?.name || session.user.email?.split("@")[0] || "User",
               is_admin: false,
@@ -69,18 +77,26 @@ export default function ProfilePage() {
           .select()
           .single()
 
-        if (insertError) {
-          console.error("Error creating user profile:", insertError)
+        if (createError) {
+          console.error("Error creating profile:", createError)
         } else {
           setProfile(newProfile)
-          setName(newProfile.name)
+          setFormData({
+            name: newProfile.name || "",
+            phone: newProfile.phone || "",
+            address: newProfile.address || "",
+          })
         }
       } else {
         setProfile(profileData)
-        setName(profileData.name)
+        setFormData({
+          name: profileData.name || "",
+          phone: profileData.phone || "",
+          address: profileData.address || "",
+        })
       }
     } catch (error) {
-      console.error("Error checking auth:", error)
+      console.error("Error checking user:", error)
     } finally {
       setLoading(false)
     }
@@ -88,20 +104,28 @@ export default function ProfilePage() {
 
   const handleUpdateProfile = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!profile) return
+
     setUpdating(true)
-
     try {
-      if (!profile) return
-
-      const { error } = await supabase.from("users").update({ name }).eq("id", profile.id)
+      const { error } = await supabase
+        .from("users")
+        .update({
+          name: formData.name,
+          phone: formData.phone,
+          address: formData.address,
+        })
+        .eq("id", profile.id)
 
       if (error) throw error
 
-      setProfile({ ...profile, name })
       toast({
         title: "Success",
         description: "Profile updated successfully",
       })
+
+      // Refresh profile data
+      checkUser()
     } catch (error: any) {
       console.error("Error updating profile:", error)
       toast({
@@ -115,8 +139,12 @@ export default function ProfilePage() {
   }
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
-    router.push("/")
+    try {
+      await supabase.auth.signOut()
+      router.push("/")
+    } catch (error) {
+      console.error("Error signing out:", error)
+    }
   }
 
   if (loading) {
@@ -127,137 +155,202 @@ export default function ProfilePage() {
     )
   }
 
-  if (!user || !profile) {
+  if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <Card className="w-full max-w-md">
-          <CardContent className="p-6">
-            <Alert>
-              <AlertDescription>Unable to load profile. Please try again.</AlertDescription>
-            </Alert>
-          </CardContent>
-        </Card>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile not found</h2>
+          <Button onClick={() => router.push("/")} size="lg">
+            Go Home
+          </Button>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4 max-w-2xl">
+      <div className="container mx-auto px-4 max-w-4xl">
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2">My Profile</h1>
           <p className="text-gray-600">Manage your account settings and preferences</p>
         </div>
 
-        <div className="space-y-6">
-          {/* Profile Information */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <User className="h-5 w-5" />
-                Profile Information
-              </CardTitle>
-              <CardDescription>Update your personal information</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleUpdateProfile} className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="Enter your full name"
-                    required
-                  />
-                </div>
-
-                <div>
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input id="email" value={profile.email} disabled className="bg-gray-100" />
-                  <p className="text-sm text-gray-500 mt-1">Email cannot be changed</p>
-                </div>
-
-                <Button type="submit" disabled={updating}>
-                  {updating ? "Updating..." : "Update Profile"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          {/* Account Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Mail className="h-5 w-5" />
-                Account Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Calendar className="h-4 w-4 text-gray-500" />
-                  <span className="text-sm">Member since</span>
-                </div>
-                <span className="text-sm font-medium">
-                  {new Date(profile.created_at).toLocaleDateString("en-US", {
-                    year: "numeric",
-                    month: "long",
-                    day: "numeric",
-                  })}
-                </span>
-              </div>
-
-              {profile.is_admin && (
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Shield className="h-4 w-4 text-green-500" />
-                    <span className="text-sm">Account Type</span>
-                  </div>
-                  <span className="text-sm font-medium text-green-600">Administrator</span>
-                </div>
-              )}
-
-              <Separator />
-
-              <div className="flex items-center justify-between">
-                <span className="text-sm">Email Verified</span>
-                <span className="text-sm font-medium text-green-600">
-                  {user.email_confirmed_at ? "Verified" : "Not Verified"}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Admin Access */}
-          {profile.is_admin && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Profile Overview */}
+          <div className="lg:col-span-1">
             <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Shield className="h-5 w-5" />
-                  Admin Access
-                </CardTitle>
-                <CardDescription>You have administrator privileges</CardDescription>
+              <CardHeader className="text-center">
+                <Avatar className="w-24 h-24 mx-auto mb-4">
+                  <AvatarImage src={user?.user_metadata?.avatar_url || "/placeholder.svg"} />
+                  <AvatarFallback className="text-2xl">
+                    {profile.name?.charAt(0)?.toUpperCase() || "U"}
+                  </AvatarFallback>
+                </Avatar>
+                <CardTitle>{profile.name}</CardTitle>
+                <CardDescription>{profile.email}</CardDescription>
+                {profile.is_admin && (
+                  <Badge className="mt-2 bg-purple-600">
+                    <Shield className="w-3 h-3 mr-1" />
+                    Admin
+                  </Badge>
+                )}
               </CardHeader>
-              <CardContent>
-                <Button asChild>
-                  <a href="/admin/dashboard">Go to Admin Dashboard</a>
-                </Button>
+              <CardContent className="space-y-4">
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Calendar className="w-4 h-4" />
+                  <span>Joined {new Date(profile.created_at).toLocaleDateString()}</span>
+                </div>
+                <div className="flex items-center space-x-2 text-sm text-gray-600">
+                  <Mail className="w-4 h-4" />
+                  <span>{profile.email}</span>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => router.push("/orders")}
+                  >
+                    <Package className="w-4 h-4 mr-2" />
+                    My Orders
+                  </Button>
+                  
+                  {profile.is_admin && (
+                    <Button 
+                      variant="outline" 
+                      className="w-full justify-start bg-purple-50 border-purple-200 text-purple-700 hover:bg-purple-100"
+                      onClick={() => router.push("/admin/dashboard")}
+                    >
+                      <Shield className="w-4 h-4 mr-2" />
+                      Admin Dashboard
+                    </Button>
+                  )}
+                  
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start text-red-600 border-red-200 hover:bg-red-50"
+                    onClick={handleSignOut}
+                  >
+                    Sign Out
+                  </Button>
+                </div>
               </CardContent>
             </Card>
-          )}
+          </div>
 
-          {/* Account Actions */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Account Actions</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <Button variant="outline" onClick={handleSignOut} className="w-full bg-transparent">
-                Sign Out
-              </Button>
-            </CardContent>
-          </Card>
+          {/* Profile Settings */}
+          <div className="lg:col-span-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center">
+                  <Settings className="w-5 h-5 mr-2" />
+                  Profile Settings
+                </CardTitle>
+                <CardDescription>
+                  Update your personal information and preferences
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleUpdateProfile} className="space-y-6">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <Label htmlFor="name">Full Name</Label>
+                      <Input
+                        id="name"
+                        value={formData.name}
+                        onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                        placeholder="Enter your full name"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="email">Email Address</Label>
+                      <Input
+                        id="email"
+                        value={profile.email}
+                        disabled
+                        className="bg-gray-50"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Email cannot be changed</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label htmlFor="phone">Phone Number</Label>
+                    <Input
+                      id="phone"
+                      value={formData.phone}
+                      onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                      placeholder="Enter your phone number"
+                      type="tel"
+                    />
+                  </div>
+
+                  <div>
+                    <Label htmlFor="address">Address</Label>
+                    <Input
+                      id="address"
+                      value={formData.address}
+                      onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                      placeholder="Enter your address"
+                    />
+                  </div>
+
+                  <Separator />
+
+                  <div className="flex justify-end space-x-4">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => {
+                        setFormData({
+                          name: profile.name || "",
+                          phone: profile.phone || "",
+                          address: profile.address || "",
+                        })
+                      }}
+                    >
+                      Reset
+                    </Button>
+                    <Button type="submit" disabled={updating}>
+                      {updating ? "Updating..." : "Update Profile"}
+                    </Button>
+                  </div>
+                </form>
+              </CardContent>
+            </Card>
+
+            {/* Account Statistics */}
+            <Card className="mt-6">
+              <CardHeader>
+                <CardTitle>Account Statistics</CardTitle>
+                <CardDescription>Your activity summary</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">0</div>
+                    <div className="text-sm text-gray-600">Total Orders</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">₹0</div>
+                    <div className="text-sm text-gray-600">Total Spent</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">0</div>
+                    <div className="text-sm text-gray-600">Wishlist Items</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">0</div>
+                    <div className="text-sm text-gray-600">Reviews</div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
         </div>
       </div>
     </div>

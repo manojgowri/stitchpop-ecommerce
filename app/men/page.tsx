@@ -6,7 +6,8 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star } from "lucide-react"
+import { Star } from 'lucide-react'
+import { supabase } from "@/lib/supabaseClient"
 
 interface Product {
   id: string
@@ -19,46 +20,84 @@ interface Product {
 }
 
 interface Category {
+  id: string
   name: string
-  slug: string
-  image: string
-  count: number
+  image_url?: string
+  product_count?: number
 }
 
 export default function MenPage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-
-  const categories: Category[] = [
-    {
-      name: "T-Shirts",
-      slug: "t-shirts",
-      image: "/placeholder.svg?height=200&width=300&text=T-Shirts",
-      count: 45,
-    },
-    {
-      name: "Shirts",
-      slug: "shirts",
-      image: "/placeholder.svg?height=200&width=300&text=Shirts",
-      count: 32,
-    },
-    {
-      name: "Jeans",
-      slug: "jeans",
-      image: "/placeholder.svg?height=200&width=300&text=Jeans",
-      count: 28,
-    },
-    {
-      name: "Jackets",
-      slug: "jackets",
-      image: "/placeholder.svg?height=200&width=300&text=Jackets",
-      count: 15,
-    },
-  ]
+  const [categories, setCategories] = useState<Category[]>([])
 
   useEffect(() => {
     fetchFeaturedProducts()
+    fetchCategories()
   }, [])
+
+  const fetchCategories = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('categories')
+        .select(`
+        *,
+        products!inner(count)
+      `)
+        .eq('gender', 'men')
+        .eq('is_active', true)
+
+      if (error) throw error
+
+      // Process the data to get product counts
+      const categoriesWithCounts = await Promise.all(
+        (data || []).map(async (category) => {
+          const { count } = await supabase
+            .from('products')
+            .select('*', { count: 'exact', head: true })
+            .eq('category_id', category.id)
+            .eq('gender', 'men')
+            .eq('is_active', true)
+
+          return {
+            ...category,
+            product_count: count || 0,
+          }
+        })
+      )
+
+      setCategories(categoriesWithCounts)
+    } catch (error) {
+      console.error('Error fetching categories:', error)
+      // Fallback to static categories
+      setCategories([
+        {
+          id: '1',
+          name: 'T-Shirts',
+          image_url: '/placeholder.svg?height=200&width=300&text=T-Shirts',
+          product_count: 45,
+        },
+        {
+          id: '2',
+          name: 'Shirts',
+          image_url: '/placeholder.svg?height=200&width=300&text=Shirts',
+          product_count: 32,
+        },
+        {
+          id: '3',
+          name: 'Jeans',
+          image_url: '/placeholder.svg?height=200&width=300&text=Jeans',
+          product_count: 28,
+        },
+        {
+          id: '4',
+          name: 'Jackets',
+          image_url: '/placeholder.svg?height=200&width=300&text=Jackets',
+          product_count: 15,
+        },
+      ])
+    }
+  }
 
   const fetchFeaturedProducts = async () => {
     try {
@@ -138,11 +177,11 @@ export default function MenPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.map((category) => (
-              <Link key={category.slug} href={`/men/${category.slug}`}>
+              <Link key={category.id} href={`/men/${category.name.toLowerCase().replace(/\s+/g, '-')}`}>
                 <Card className="group overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
                   <div className="relative overflow-hidden">
                     <Image
-                      src={category.image || "/placeholder.svg"}
+                      src={category.image_url || "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(category.name)}
                       alt={category.name}
                       width={300}
                       height={200}
@@ -151,7 +190,7 @@ export default function MenPage() {
                     <div className="absolute inset-0 bg-black bg-opacity-40 group-hover:bg-opacity-30 transition-all duration-300">
                       <div className="absolute bottom-4 left-4">
                         <h3 className="text-white text-xl font-bold">{category.name}</h3>
-                        <p className="text-white text-sm">{category.count} items</p>
+                        <p className="text-white text-sm">{category.product_count || 0} items</p>
                       </div>
                     </div>
                   </div>

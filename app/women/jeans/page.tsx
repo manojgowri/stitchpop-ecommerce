@@ -2,51 +2,45 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
+import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import { Skeleton } from "@/components/ui/skeleton"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, Filter } from "lucide-react"
+import { Star, ArrowLeft } from 'lucide-react'
 import { supabase } from "@/lib/supabase"
 
 interface Product {
   id: string
   name: string
-  description: string | null
+  description: string
   price: number
-  original_price: number | null
+  original_price?: number
   images: string[]
   rating: number
+  sizes: string[]
+  colors: string[]
+  stock: number
   is_on_sale: boolean
-  themes: {
-    name: string
-  } | null
 }
 
 export default function WomenJeansPage() {
   const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
-  const [sortBy, setSortBy] = useState("newest")
+  const [sortBy, setSortBy] = useState("featured")
 
   useEffect(() => {
     fetchProducts()
-  }, [sortBy])
+  }, [])
+
+  useEffect(() => {
+    sortProducts()
+  }, [products, sortBy])
 
   const fetchProducts = async () => {
     try {
-      let query = supabase
-        .from("products")
-        .select(`
-          *,
-          themes (
-            name
-          )
-        `)
-        .eq("gender", "women")
-        .eq("is_active", true)
-
-      // Join with categories to filter by jeans
+      // First get the category ID for women's jeans
       const { data: categoryData } = await supabase
         .from("categories")
         .select("id")
@@ -55,132 +49,194 @@ export default function WomenJeansPage() {
         .single()
 
       if (categoryData) {
-        query = query.eq("category_id", categoryData.id)
+        const { data, error } = await supabase
+          .from("products")
+          .select("*")
+          .eq("category_id", categoryData.id)
+          .eq("is_active", true)
+
+        if (error) throw error
+        setProducts(data || [])
       }
-
-      // Apply sorting
-      switch (sortBy) {
-        case "price-low":
-          query = query.order("price", { ascending: true })
-          break
-        case "price-high":
-          query = query.order("price", { ascending: false })
-          break
-        case "rating":
-          query = query.order("rating", { ascending: false })
-          break
-        default:
-          query = query.order("created_at", { ascending: false })
-      }
-
-      const { data, error } = await query
-
-      if (error) throw error
-
-      setProducts(data || [])
     } catch (error) {
-      console.error("Error fetching products:", error)
+      console.error("Error fetching jeans:", error)
+      // Fallback data
+      setProducts([
+        {
+          id: "1",
+          name: "High Waist Skinny Jeans",
+          description: "Trendy high waist skinny jeans with stretch fabric",
+          price: 1399,
+          original_price: 1999,
+          images: ["/placeholder.svg?height=400&width=300&text=High+Waist+Jeans"],
+          rating: 4.5,
+          sizes: ["24", "26", "28", "30", "32"],
+          colors: ["Dark Blue", "Light Blue", "Black"],
+          stock: 50,
+          is_on_sale: true,
+        },
+        {
+          id: "2",
+          name: "Mom Fit Jeans",
+          description: "Comfortable mom fit jeans with vintage wash",
+          price: 1199,
+          images: ["/placeholder.svg?height=400&width=300&text=Mom+Jeans"],
+          rating: 4.3,
+          sizes: ["24", "26", "28", "30", "32"],
+          colors: ["Blue", "Light Blue"],
+          stock: 35,
+          is_on_sale: false,
+        },
+      ])
     } finally {
       setLoading(false)
     }
   }
 
+  const sortProducts = () => {
+    let sorted = [...products]
+
+    switch (sortBy) {
+      case "price-low":
+        sorted.sort((a, b) => a.price - b.price)
+        break
+      case "price-high":
+        sorted.sort((a, b) => b.price - a.price)
+        break
+      case "rating":
+        sorted.sort((a, b) => b.rating - a.rating)
+        break
+      case "newest":
+        sorted.sort((a, b) => b.id.localeCompare(a.id))
+        break
+      default:
+        break
+    }
+
+    setFilteredProducts(sorted)
+  }
+
   if (loading) {
     return (
-      <div className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <Skeleton className="h-8 w-48 mb-2" />
-          <Skeleton className="h-4 w-96" />
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {Array.from({ length: 8 }).map((_, i) => (
-            <Card key={i} className="overflow-hidden">
-              <Skeleton className="aspect-square w-full" />
-              <CardContent className="p-4">
-                <Skeleton className="h-4 w-full mb-2" />
-                <Skeleton className="h-4 w-24 mb-2" />
-                <Skeleton className="h-6 w-16" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
       </div>
     )
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-bold mb-2">Women's Jeans</h1>
-        <p className="text-muted-foreground">Trendy denim in various cuts and washes</p>
-      </div>
-
-      {/* Filters and Sort */}
-      <div className="flex flex-col sm:flex-row gap-4 mb-6">
-        <div className="flex items-center gap-2">
-          <Filter className="h-4 w-4" />
-          <span className="text-sm font-medium">Sort by:</span>
-          <Select value={sortBy} onValueChange={setSortBy}>
-            <SelectTrigger className="w-40">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">Newest</SelectItem>
-              <SelectItem value="price-low">Price: Low to High</SelectItem>
-              <SelectItem value="price-high">Price: High to Low</SelectItem>
-              <SelectItem value="rating">Highest Rated</SelectItem>
-            </SelectContent>
-          </Select>
+    <div className="min-h-screen bg-gray-50 py-8">
+      <div className="container mx-auto px-4">
+        {/* Breadcrumb */}
+        <div className="mb-6">
+          <Link href="/women" className="inline-flex items-center text-sm text-gray-600 hover:text-primary mb-4">
+            <ArrowLeft className="w-4 h-4 mr-2" />
+            Back to Women's Collection
+          </Link>
+          <h1 className="text-3xl font-bold mb-2">Women's Jeans</h1>
+          <p className="text-gray-600">Premium denim for the modern woman</p>
         </div>
-      </div>
 
-      {/* Products Grid */}
-      {products.length > 0 ? (
+        {/* Filters */}
+        <div className="bg-white rounded-lg p-4 mb-8 shadow-sm">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div className="text-sm text-gray-600">
+              Showing {filteredProducts.length} products
+            </div>
+            <div className="flex items-center space-x-4">
+              <Select value={sortBy} onValueChange={setSortBy}>
+                <SelectTrigger className="w-48">
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="featured">Featured</SelectItem>
+                  <SelectItem value="price-low">Price: Low to High</SelectItem>
+                  <SelectItem value="price-high">Price: High to Low</SelectItem>
+                  <SelectItem value="rating">Highest Rated</SelectItem>
+                  <SelectItem value="newest">Newest</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        </div>
+
+        {/* Products Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.map((product) => (
-            <Link key={product.id} href={`/product/${product.id}`}>
-              <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
-                <div className="aspect-square relative">
-                  <img
-                    src={product.images[0] || "/placeholder.svg?height=300&width=300&text=Jeans"}
-                    alt={product.name}
-                    className="w-full h-full object-cover"
-                  />
-                  {product.is_on_sale && <Badge className="absolute top-2 left-2 bg-red-500">Sale</Badge>}
-                  {product.themes && <Badge className="absolute top-2 right-2 bg-primary">{product.themes.name}</Badge>}
-                </div>
-                <CardContent className="p-4">
-                  <h3 className="font-semibold mb-1 line-clamp-2">{product.name}</h3>
-
-                  <div className="flex items-center gap-2 mb-2">
-                    <div className="flex items-center">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="text-sm ml-1">{product.rating}</span>
-                    </div>
+          {filteredProducts.map((product) => (
+            <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
+              <div className="relative overflow-hidden">
+                <Image
+                  src={product.images[0] || "/placeholder.svg"}
+                  alt={product.name}
+                  width={300}
+                  height={400}
+                  className="w-full h-80 object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+                {product.is_on_sale && product.original_price && (
+                  <Badge className="absolute top-2 left-2 bg-red-500">
+                    {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
+                  </Badge>
+                )}
+                {product.stock <= 5 && product.stock > 0 && (
+                  <Badge className="absolute top-2 right-2 bg-orange-500">Low Stock</Badge>
+                )}
+                {product.stock === 0 && <Badge className="absolute top-2 right-2 bg-gray-500">Out of Stock</Badge>}
+              </div>
+              <CardContent className="p-4">
+                <h3 className="font-semibold mb-2 line-clamp-2">{product.name}</h3>
+                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
+                
+                <div className="flex items-center mb-2">
+                  <div className="flex items-center">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`h-4 w-4 ${
+                          i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"
+                        }`}
+                      />
+                    ))}
                   </div>
+                  <span className="text-sm text-gray-600 ml-1">({product.rating})</span>
+                </div>
 
-                  <div className="flex items-center gap-2">
-                    <span className="font-bold">₹{product.price}</span>
-                    {product.is_on_sale && product.original_price && (
-                      <span className="text-sm text-muted-foreground line-through">₹{product.original_price}</span>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-2">
+                    <span className="font-bold text-lg">₹{product.price}</span>
+                    {product.original_price && (
+                      <span className="text-sm text-gray-500 line-through">₹{product.original_price}</span>
                     )}
                   </div>
-                </CardContent>
-              </Card>
-            </Link>
+                </div>
+
+                <div className="text-xs text-gray-600 mb-3">
+                  {product.sizes.length} sizes • {product.colors.length} colors
+                </div>
+
+                <Button 
+                  className="w-full" 
+                  size="sm"
+                  disabled={product.stock === 0}
+                  asChild
+                >
+                  <Link href={`/product/${product.id}`}>
+                    {product.stock === 0 ? "Out of Stock" : "View Details"}
+                  </Link>
+                </Button>
+              </CardContent>
+            </Card>
           ))}
         </div>
-      ) : (
-        <div className="text-center py-12">
-          <p className="text-muted-foreground">No jeans available at the moment.</p>
-          <Link href="/women">
-            <Button variant="outline" className="mt-4 bg-transparent">
-              Browse All Women's Items
+
+        {filteredProducts.length === 0 && (
+          <div className="text-center py-12">
+            <p className="text-gray-600 text-lg">No jeans found</p>
+            <Button className="mt-4" asChild>
+              <Link href="/women">Browse All Women's Products</Link>
             </Button>
-          </Link>
-        </div>
-      )}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

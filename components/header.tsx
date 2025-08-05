@@ -16,8 +16,8 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, ShoppingCart, User, Menu, X } from "lucide-react"
-import { createClient } from "@/lib/supabase"
+import { Search, ShoppingCart, User, Menu, X } from 'lucide-react'
+import { supabase } from "@/lib/supabase"
 import { CartSlideOver } from "@/components/cart-slide-over"
 
 export function Header() {
@@ -29,8 +29,6 @@ export function Header() {
   const router = useRouter()
 
   useEffect(() => {
-    const supabase = createClient()
-
     // Get initial session
     const getSession = async () => {
       const {
@@ -52,7 +50,6 @@ export function Header() {
   }, [])
 
   const handleSignOut = async () => {
-    const supabase = createClient()
     await supabase.auth.signOut()
     router.push("/")
   }
@@ -132,6 +129,10 @@ export function Header() {
 
               <Link href="/categories">
                 <Button variant="ghost">Categories</Button>
+              </Link>
+
+              <Link href="/themes">
+                <Button variant="ghost">Themes</Button>
               </Link>
 
               <Link href="/sale">
@@ -224,6 +225,11 @@ export function Header() {
                 <Link href="/categories" onClick={() => setIsMenuOpen(false)}>
                   <Button variant="ghost" className="w-full justify-start">
                     Categories
+                  </Button>
+                </Link>
+                <Link href="/themes" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start">
+                    Themes
                   </Button>
                 </Link>
                 <Link href="/sale" onClick={() => setIsMenuOpen(false)}>
