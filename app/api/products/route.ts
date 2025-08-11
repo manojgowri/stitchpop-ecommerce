@@ -27,17 +27,23 @@ export async function GET(request: Request) {
       `)
       .eq("is_active", true)
 
-    // Filter by category name if provided
     if (category) {
+      // Handle special case for t-shirts URL parameter
+      const categoryName = category === "t-shirts" ? "Shirts" : category
+
       const { data: categoryData } = await supabase
         .from("categories")
         .select("id")
-        .eq("name", category)
+        .ilike("name", categoryName)
         .eq("gender", gender || "men")
+        .eq("is_active", true)
         .single()
 
       if (categoryData) {
         query = query.eq("category_id", categoryData.id)
+      } else {
+        // If no category found, return empty array
+        return NextResponse.json([])
       }
     }
 
@@ -56,14 +62,13 @@ export async function GET(request: Request) {
       query = query.eq("is_featured", true)
     }
 
-    // Filter sale products
     if (sale === "true") {
       query = query.eq("is_on_sale", true)
     }
 
     // Apply limit
     if (limit) {
-      query = query.limit(parseInt(limit))
+      query = query.limit(Number.parseInt(limit))
     }
 
     // Order by created_at
@@ -86,12 +91,8 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    
-    const { data, error } = await supabase
-      .from("products")
-      .insert([body])
-      .select()
-      .single()
+
+    const { data, error } = await supabase.from("products").insert([body]).select().single()
 
     if (error) {
       console.error("Supabase error:", error)
@@ -102,5 +103,24 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Error creating product:", error)
     return NextResponse.json({ error: "Failed to create product" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: Request) {
+  try {
+    const body = await request.json()
+    const { id, ...updateData } = body
+
+    const { data, error } = await supabase.from("products").update(updateData).eq("id", id).select().single()
+
+    if (error) {
+      console.error("Supabase error:", error)
+      return NextResponse.json({ error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json(data)
+  } catch (error) {
+    console.error("Error updating product:", error)
+    return NextResponse.json({ error: "Failed to update product" }, { status: 500 })
   }
 }

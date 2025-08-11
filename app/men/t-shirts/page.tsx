@@ -57,7 +57,7 @@ export default function MenTShirtsPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/products?category=t-shirts&gender=men")
+      const response = await fetch("/api/products?category=t-shirts&gender=men")
       if (response.ok) {
         const data = await response.json()
         setProducts(data)
@@ -157,7 +157,7 @@ export default function MenTShirtsPage() {
     const color = product.colors[0]
 
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/cart/add", {
+      const response = await fetch("/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

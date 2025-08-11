@@ -23,7 +23,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, AlertTriangle, Package, ShoppingCart, TrendingUp, Upload, X } from 'lucide-react'
+import { Plus, Edit, Trash2, AlertTriangle, Package, ShoppingCart, TrendingUp, Upload } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
@@ -263,19 +263,15 @@ export default function AdminDashboard() {
         throw new Error("Image size must be less than 500KB")
       }
 
-      const fileExt = file.name.split('.').pop()
+      const fileExt = file.name.split(".").pop()
       const fileName = `${Math.random()}.${fileExt}`
       const filePath = `products/${fileName}`
 
-      const { error: uploadError } = await supabase.storage
-        .from('product-images')
-        .upload(filePath, file)
+      const { error: uploadError } = await supabase.storage.from("product-images").upload(filePath, file)
 
       if (uploadError) throw uploadError
 
-      const { data } = supabase.storage
-        .from('product-images')
-        .getPublicUrl(filePath)
+      const { data } = supabase.storage.from("product-images").getPublicUrl(filePath)
 
       return data.publicUrl
     } catch (error: any) {
@@ -291,31 +287,31 @@ export default function AdminDashboard() {
   const handleImageUpload = async (files: FileList | null) => {
     if (!files) return
 
-    const fileArray = Array.from(files)
-    if (fileArray.length > 3) {
-      toast({
-        title: "Too many files",
-        description: "Please select maximum 3 images",
-        variant: "destructive",
-      })
-      return
+    const validFiles: File[] = []
+    const maxSize = 500 * 1024 // 500KB in bytes
+
+    for (let i = 0; i < Math.min(files.length, 3); i++) {
+      const file = files[i]
+      if (file.size > maxSize) {
+        toast({
+          title: "File too large",
+          description: `${file.name} is larger than 500KB. Please choose a smaller image.`,
+          variant: "destructive",
+        })
+        continue
+      }
+      validFiles.push(file)
     }
 
-    try {
-      const uploadPromises = fileArray.map(uploadImage)
-      const imageUrls = await Promise.all(uploadPromises)
-      
-      setNewProduct(prev => ({
-        ...prev,
-        images: imageUrls.join(", ")
-      }))
-
+    if (validFiles.length > 0) {
+      setUploadingImages(validFiles)
+      // Here you would typically upload to a service like Cloudinary or Supabase Storage
+      // For now, we'll show a message about manual URL entry
       toast({
-        title: "Success",
-        description: "Images uploaded successfully",
+        title: "Image Upload",
+        description:
+          "Please upload your images to Imgur or Cloudinary and paste the URLs in the Image URLs field below.",
       })
-    } catch (error) {
-      console.error("Error uploading images:", error)
     }
   }
 
@@ -334,10 +330,13 @@ export default function AdminDashboard() {
         stock: Number.parseInt(newProduct.stock),
         sizes: newProduct.sizes.split(",").map((s) => s.trim()),
         colors: newProduct.colors.split(",").map((c) => c.trim()),
-        images: newProduct.images.split(",").map((i) => i.trim()),
+        images: newProduct.images
+          .split(",")
+          .map((i) => i.trim())
+          .filter((url) => url.length > 0),
         is_active: true,
         is_featured: newProduct.is_featured,
-        is_on_sale: newProduct.is_on_sale,
+        is_on_sale: newProduct.is_on_sale, // Sale toggle controls whether product appears on sale page
       }
 
       const { error } = await supabase.from("products").insert([productData])
@@ -346,7 +345,7 @@ export default function AdminDashboard() {
 
       toast({
         title: "Success",
-        description: "Product added successfully",
+        description: `Product added successfully${newProduct.is_on_sale ? " and added to sale page" : ""}`,
       })
 
       setNewProduct({
@@ -414,11 +413,79 @@ export default function AdminDashboard() {
     }
   }
 
+  const handleAddCategory = async (e: React.FormEvent) => {
+    e.preventDefault()
+
+    try {
+      const categoryData = {
+        name: newCategory.name,
+        description: newCategory.description,
+        gender: newCategory.gender,
+        is_active: true,
+      }
+
+      const { error } = await supabase.from("categories").insert([categoryData])
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Category added successfully",
+      })
+
+      setNewCategory({
+        name: "",
+        description: "",
+        gender: "",
+      })
+
+      fetchCategories()
+    } catch (error: any) {
+      console.error("Error adding category:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to add category",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleDeleteCategory = async (categoryId: string) => {
+    if (!confirm("Are you sure you want to delete this category?")) return
+
+    try {
+      const { error } = await supabase.from("categories").update({ is_active: false }).eq("id", categoryId)
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Category deleted successfully",
+      })
+
+      fetchCategories()
+    } catch (error: any) {
+      console.error("Error deleting category:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete category",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleAddTheme = async (e: React.FormEvent) => {
     e.preventDefault()
 
     try {
-      const { error } = await supabase.from("themes").insert([newTheme])
+      const themeData = {
+        name: newTheme.name,
+        description: newTheme.description,
+        image_url: newTheme.image_url,
+        is_active: true,
+      }
+
+      const { error } = await supabase.from("themes").insert([themeData])
 
       if (error) throw error
 
@@ -477,35 +544,25 @@ export default function AdminDashboard() {
     }
   }
 
-  const handleAddCategory = async (e: React.FormEvent) => {
-    e.preventDefault()
+  const handleDeleteTheme = async (themeId: string) => {
+    if (!confirm("Are you sure you want to delete this theme?")) return
 
     try {
-      const { error } = await supabase.from("categories").insert([{
-        ...newCategory,
-        is_active: true
-      }])
+      const { error } = await supabase.from("themes").update({ is_active: false }).eq("id", themeId)
 
       if (error) throw error
 
       toast({
         title: "Success",
-        description: "Category added successfully",
+        description: "Theme deleted successfully",
       })
 
-      setNewCategory({
-        name: "",
-        description: "",
-        gender: "",
-        image_url: "",
-      })
-
-      fetchCategories()
+      fetchThemes()
     } catch (error: any) {
-      console.error("Error adding category:", error)
+      console.error("Error deleting theme:", error)
       toast({
         title: "Error",
-        description: error.message || "Failed to add category",
+        description: error.message || "Failed to delete theme",
         variant: "destructive",
       })
     }
@@ -529,50 +586,6 @@ export default function AdminDashboard() {
       toast({
         title: "Error",
         description: error.message || "Failed to delete product",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleDeleteTheme = async (themeId: string) => {
-    try {
-      const { error } = await supabase.from("themes").delete().eq("id", themeId)
-
-      if (error) throw error
-
-      toast({
-        title: "Success",
-        description: "Theme deleted successfully",
-      })
-
-      fetchThemes()
-    } catch (error: any) {
-      console.error("Error deleting theme:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete theme",
-        variant: "destructive",
-      })
-    }
-  }
-
-  const handleDeleteCategory = async (categoryId: string) => {
-    try {
-      const { error } = await supabase.from("categories").delete().eq("id", categoryId)
-
-      if (error) throw error
-
-      toast({
-        title: "Success",
-        description: "Category deleted successfully",
-      })
-
-      fetchCategories()
-    } catch (error: any) {
-      console.error("Error deleting category:", error)
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete category",
         variant: "destructive",
       })
     }
@@ -669,7 +682,8 @@ export default function AdminDashboard() {
                   <DialogHeader>
                     <DialogTitle>Add New Product</DialogTitle>
                     <DialogDescription>
-                      Create a new product for your store. For image URLs, use direct links to images (e.g., from Imgur, Cloudinary, or your own server).
+                      Create a new product for your store. For image URLs, use direct links to images (e.g., from Imgur,
+                      Cloudinary, or your own server).
                     </DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddProduct} className="space-y-4">
@@ -729,18 +743,22 @@ export default function AdminDashboard() {
                         <Label htmlFor="theme">Theme (Optional)</Label>
                         <Select
                           value={newProduct.theme_id}
-                          onValueChange={(value) => setNewProduct({ ...newProduct, theme_id: value === "none" ? "" : value })}
+                          onValueChange={(value) =>
+                            setNewProduct({ ...newProduct, theme_id: value === "none" ? "" : value })
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select theme" />
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="none">No Theme</SelectItem>
-                            {themes.filter(theme => theme.is_active).map((theme) => (
-                              <SelectItem key={theme.id} value={theme.id}>
-                                {theme.name}
-                              </SelectItem>
-                            ))}
+                            {themes
+                              .filter((theme) => theme.is_active)
+                              .map((theme) => (
+                                <SelectItem key={theme.id} value={theme.id}>
+                                  {theme.name}
+                                </SelectItem>
+                              ))}
                           </SelectContent>
                         </Select>
                       </div>
@@ -836,14 +854,42 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="text-sm text-gray-600">
-                        <p><strong>Alternative:</strong> You can also paste image URLs directly below.</p>
-                        <p><strong>How to get image URLs:</strong></p>
+                        <p>
+                          <strong>Alternative:</strong> You can also paste image URLs directly below.
+                        </p>
+                        <p>
+                          <strong>How to get image URLs:</strong>
+                        </p>
                         <ul className="list-disc list-inside mt-1 space-y-1">
-                          <li>Upload to <a href="https://imgur.com" target="_blank" className="text-blue-600 hover:underline">Imgur</a> and copy the direct link</li>
-                          <li>Use <a href="https://cloudinary.com" target="_blank" className="text-blue-600 hover:underline">Cloudinary</a> for professional image hosting</li>
-                          <li>Right-click any web image and select "Copy image address" (ensure you have permission)</li>
+                          <li>
+                            Upload to{" "}
+                            <a
+                              href="https://imgur.com"
+                              target="_blank"
+                              className="text-blue-600 hover:underline"
+                              rel="noreferrer"
+                            >
+                              Imgur
+                            </a>{" "}
+                            and copy the direct link
+                          </li>
+                          <li>
+                            Use{" "}
+                            <a
+                              href="https://cloudinary.com"
+                              target="_blank"
+                              className="text-blue-600 hover:underline"
+                              rel="noreferrer"
+                            >
+                              Cloudinary
+                            </a>{" "}
+                            for professional image hosting
+                          </li>
+                          <li>
+                            Right-click any web image and select "Copy image address" (ensure you have permission)
+                          </li>
                         </ul>
                       </div>
 
@@ -907,8 +953,8 @@ export default function AdminDashboard() {
                     {products.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{product.categories?.name || 'N/A'}</TableCell>
-                        <TableCell>{product.themes?.name || 'No Theme'}</TableCell>
+                        <TableCell>{product.categories?.name || "N/A"}</TableCell>
+                        <TableCell>{product.themes?.name || "No Theme"}</TableCell>
                         <TableCell className="capitalize">{product.gender}</TableCell>
                         <TableCell>₹{product.price}</TableCell>
                         <TableCell>
@@ -932,11 +978,7 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setEditingProduct(product)}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => setEditingProduct(product)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => handleDeleteProduct(product.id)}>
@@ -950,94 +992,6 @@ export default function AdminDashboard() {
                 </Table>
               </CardContent>
             </Card>
-          </TabsContent>
-
-          {/* Themes Tab */}
-          <TabsContent value="themes" className="space-y-6">
-            <div className="flex justify-between items-center">
-              <h2 className="text-2xl font-bold">Themes</h2>
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Theme
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Theme</DialogTitle>
-                    <DialogDescription>Create a new theme for your products</DialogDescription>
-                  </DialogHeader>
-                  <form onSubmit={handleAddTheme} className="space-y-4">
-                    <div>
-                      <Label htmlFor="themeName">Theme Name</Label>
-                      <Input
-                        id="themeName"
-                        value={newTheme.name}
-                        onChange={(e) => setNewTheme({ ...newTheme, name: e.target.value })}
-                        required
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="themeDescription">Description</Label>
-                      <Textarea
-                        id="themeDescription"
-                        value={newTheme.description}
-                        onChange={(e) => setNewTheme({ ...newTheme, description: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="themeImage">Image URL</Label>
-                      <Input
-                        id="themeImage"
-                        value={newTheme.image_url}
-                        onChange={(e) => setNewTheme({ ...newTheme, image_url: e.target.value })}
-                        placeholder="https://example.com/theme-image.jpg"
-                      />
-                    </div>
-                    <Button type="submit" className="w-full">
-                      Add Theme
-                    </Button>
-                  </form>
-                </DialogContent>
-              </Dialog>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {themes.map((theme) => (
-                <Card key={theme.id}>
-                  <CardContent className="p-4">
-                    <div className="w-full h-32 bg-gray-200 rounded-lg mb-4 flex items-center justify-center overflow-hidden">
-                      {theme.image_url ? (
-                        <img 
-                          src={theme.image_url || "/placeholder.svg"} 
-                          alt={theme.name}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <span className="text-gray-500">{theme.name}</span>
-                      )}
-                    </div>
-                    <h3 className="font-semibold text-lg mb-2">{theme.name}</h3>
-                    <p className="text-gray-600 text-sm mb-4">{theme.description}</p>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1"
-                        onClick={() => setEditingTheme(theme)}
-                      >
-                        <Edit className="h-4 w-4 mr-2" />
-                        Edit
-                      </Button>
-                      <Button variant="outline" size="sm" onClick={() => handleDeleteTheme(theme.id)}>
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
           </TabsContent>
 
           {/* Categories Tab */}
@@ -1054,7 +1008,7 @@ export default function AdminDashboard() {
                 <DialogContent>
                   <DialogHeader>
                     <DialogTitle>Add New Category</DialogTitle>
-                    <DialogDescription>Create a new category for your products</DialogDescription>
+                    <DialogDescription>Create a new product category</DialogDescription>
                   </DialogHeader>
                   <form onSubmit={handleAddCategory} className="space-y-4">
                     <div>
@@ -1063,6 +1017,7 @@ export default function AdminDashboard() {
                         id="categoryName"
                         value={newCategory.name}
                         onChange={(e) => setNewCategory({ ...newCategory, name: e.target.value })}
+                        placeholder="e.g., T-Shirts, Dresses, Jeans"
                         required
                       />
                     </div>
@@ -1079,7 +1034,6 @@ export default function AdminDashboard() {
                           <SelectItem value="men">Men</SelectItem>
                           <SelectItem value="women">Women</SelectItem>
                           <SelectItem value="kids">Kids</SelectItem>
-                          <SelectItem value="couple">Couple</SelectItem>
                           <SelectItem value="unisex">Unisex</SelectItem>
                         </SelectContent>
                       </Select>
@@ -1090,15 +1044,7 @@ export default function AdminDashboard() {
                         id="categoryDescription"
                         value={newCategory.description}
                         onChange={(e) => setNewCategory({ ...newCategory, description: e.target.value })}
-                      />
-                    </div>
-                    <div>
-                      <Label htmlFor="categoryImage">Image URL</Label>
-                      <Input
-                        id="categoryImage"
-                        value={newCategory.image_url}
-                        onChange={(e) => setNewCategory({ ...newCategory, image_url: e.target.value })}
-                        placeholder="https://example.com/category-image.jpg"
+                        placeholder="Category description"
                       />
                     </div>
                     <Button type="submit" className="w-full">
@@ -1126,7 +1072,7 @@ export default function AdminDashboard() {
                       <TableRow key={category.id}>
                         <TableCell className="font-medium">{category.name}</TableCell>
                         <TableCell className="capitalize">{category.gender}</TableCell>
-                        <TableCell>{category.description}</TableCell>
+                        <TableCell>{category.description || "No description"}</TableCell>
                         <TableCell>
                           <Badge variant={category.is_active ? "default" : "secondary"}>
                             {category.is_active ? "Active" : "Inactive"}
@@ -1134,14 +1080,116 @@ export default function AdminDashboard() {
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            <Button 
-                              variant="outline" 
-                              size="sm"
-                              onClick={() => setEditingCategory(category)}
-                            >
+                            <Button variant="outline" size="sm" onClick={() => setEditingCategory(category)}>
                               <Edit className="h-4 w-4" />
                             </Button>
                             <Button variant="outline" size="sm" onClick={() => handleDeleteCategory(category.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Enhanced Themes Tab */}
+          <TabsContent value="themes" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Themes</h2>
+              <Dialog>
+                <DialogTrigger asChild>
+                  <Button>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Add Theme
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Add New Theme</DialogTitle>
+                    <DialogDescription>Create a new themed collection</DialogDescription>
+                  </DialogHeader>
+                  <form onSubmit={handleAddTheme} className="space-y-4">
+                    <div>
+                      <Label htmlFor="themeName">Theme Name</Label>
+                      <Input
+                        id="themeName"
+                        value={newTheme.name}
+                        onChange={(e) => setNewTheme({ ...newTheme, name: e.target.value })}
+                        placeholder="e.g., Summer Collection, Vintage Style"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="themeDescription">Description</Label>
+                      <Textarea
+                        id="themeDescription"
+                        value={newTheme.description}
+                        onChange={(e) => setNewTheme({ ...newTheme, description: e.target.value })}
+                        placeholder="Theme description"
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor="themeImage">Theme Image URL</Label>
+                      <Input
+                        id="themeImage"
+                        value={newTheme.image_url}
+                        onChange={(e) => setNewTheme({ ...newTheme, image_url: e.target.value })}
+                        placeholder="https://example.com/theme-image.jpg"
+                      />
+                    </div>
+                    <Button type="submit" className="w-full">
+                      Add Theme
+                    </Button>
+                  </form>
+                </DialogContent>
+              </Dialog>
+            </div>
+
+            <Card>
+              <CardContent className="p-0">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Description</TableHead>
+                      <TableHead>Image</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {themes.map((theme) => (
+                      <TableRow key={theme.id}>
+                        <TableCell className="font-medium">{theme.name}</TableCell>
+                        <TableCell>{theme.description || "No description"}</TableCell>
+                        <TableCell>
+                          {theme.image_url ? (
+                            <img
+                              src={theme.image_url || "/placeholder.svg"}
+                              alt={theme.name}
+                              className="w-10 h-10 object-cover rounded"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                              <Package className="h-4 w-4 text-gray-400" />
+                            </div>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={theme.is_active ? "default" : "secondary"}>
+                            {theme.is_active ? "Active" : "Inactive"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex space-x-2">
+                            <Button variant="outline" size="sm" onClick={() => setEditingTheme(theme)}>
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="outline" size="sm" onClick={() => handleDeleteTheme(theme.id)}>
                               <Trash2 className="h-4 w-4" />
                             </Button>
                           </div>
@@ -1255,7 +1303,9 @@ export default function AdminDashboard() {
                       id="editPrice"
                       type="number"
                       value={editingProduct.price}
-                      onChange={(e) => setEditingProduct({ ...editingProduct, price: Number.parseFloat(e.target.value) })}
+                      onChange={(e) =>
+                        setEditingProduct({ ...editingProduct, price: Number.parseFloat(e.target.value) })
+                      }
                       required
                     />
                   </div>
@@ -1338,7 +1388,91 @@ export default function AdminDashboard() {
             </DialogContent>
           </Dialog>
         )}
+
+        {/* Edit Category Dialog */}
+        {editingCategory && (
+          <Dialog open={!!editingCategory} onOpenChange={() => setEditingCategory(null)}>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Edit Category</DialogTitle>
+                <DialogDescription>Update category information</DialogDescription>
+              </DialogHeader>
+              <form onSubmit={handleEditCategoryForm} className="space-y-4">
+                <div>
+                  <Label htmlFor="editCategoryName">Category Name</Label>
+                  <Input
+                    id="editCategoryName"
+                    value={editingCategory.name}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, name: e.target.value })}
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="editCategoryGender">Gender</Label>
+                  <Select
+                    value={editingCategory.gender}
+                    onValueChange={(value) => setEditingCategory({ ...editingCategory, gender: value })}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="men">Men</SelectItem>
+                      <SelectItem value="women">Women</SelectItem>
+                      <SelectItem value="kids">Kids</SelectItem>
+                      <SelectItem value="unisex">Unisex</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="editCategoryDescription">Description</Label>
+                  <Textarea
+                    id="editCategoryDescription"
+                    value={editingCategory.description || ""}
+                    onChange={(e) => setEditingCategory({ ...editingCategory, description: e.target.value })}
+                  />
+                </div>
+                <Button type="submit" className="w-full">
+                  Update Category
+                </Button>
+              </form>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
     </div>
   )
+
+  async function handleEditCategoryForm(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editingCategory) return
+
+    try {
+      const { error } = await supabase
+        .from("categories")
+        .update({
+          name: editingCategory.name,
+          description: editingCategory.description,
+          gender: editingCategory.gender,
+        })
+        .eq("id", editingCategory.id)
+
+      if (error) throw error
+
+      toast({
+        title: "Success",
+        description: "Category updated successfully",
+      })
+
+      setEditingCategory(null)
+      fetchCategories()
+    } catch (error: any) {
+      console.error("Error updating category:", error)
+      toast({
+        title: "Error",
+        description: error.message || "Failed to update category",
+        variant: "destructive",
+      })
+    }
+  }
 }

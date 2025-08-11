@@ -6,8 +6,8 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star } from 'lucide-react'
-import { supabase } from "@/lib/supabaseClient"
+import { Star } from "lucide-react"
+import { supabase } from "@/lib/supabase"
 
 interface Product {
   id: string
@@ -39,13 +39,13 @@ export default function MenPage() {
   const fetchCategories = async () => {
     try {
       const { data, error } = await supabase
-        .from('categories')
+        .from("categories")
         .select(`
         *,
         products!inner(count)
       `)
-        .eq('gender', 'men')
-        .eq('is_active', true)
+        .eq("gender", "men")
+        .eq("is_active", true)
 
       if (error) throw error
 
@@ -53,46 +53,46 @@ export default function MenPage() {
       const categoriesWithCounts = await Promise.all(
         (data || []).map(async (category) => {
           const { count } = await supabase
-            .from('products')
-            .select('*', { count: 'exact', head: true })
-            .eq('category_id', category.id)
-            .eq('gender', 'men')
-            .eq('is_active', true)
+            .from("products")
+            .select("*", { count: "exact", head: true })
+            .eq("category_id", category.id)
+            .eq("gender", "men")
+            .eq("is_active", true)
 
           return {
             ...category,
             product_count: count || 0,
           }
-        })
+        }),
       )
 
       setCategories(categoriesWithCounts)
     } catch (error) {
-      console.error('Error fetching categories:', error)
+      console.error("Error fetching categories:", error)
       // Fallback to static categories
       setCategories([
         {
-          id: '1',
-          name: 'T-Shirts',
-          image_url: '/placeholder.svg?height=200&width=300&text=T-Shirts',
+          id: "1",
+          name: "T-Shirts",
+          image_url: "/placeholder.svg?height=200&width=300&text=T-Shirts",
           product_count: 45,
         },
         {
-          id: '2',
-          name: 'Shirts',
-          image_url: '/placeholder.svg?height=200&width=300&text=Shirts',
+          id: "2",
+          name: "Shirts",
+          image_url: "/placeholder.svg?height=200&width=300&text=Shirts",
           product_count: 32,
         },
         {
-          id: '3',
-          name: 'Jeans',
-          image_url: '/placeholder.svg?height=200&width=300&text=Jeans',
+          id: "3",
+          name: "Jeans",
+          image_url: "/placeholder.svg?height=200&width=300&text=Jeans",
           product_count: 28,
         },
         {
-          id: '4',
-          name: 'Jackets',
-          image_url: '/placeholder.svg?height=200&width=300&text=Jackets',
+          id: "4",
+          name: "Jackets",
+          image_url: "/placeholder.svg?height=200&width=300&text=Jackets",
           product_count: 15,
         },
       ])
@@ -101,9 +101,7 @@ export default function MenPage() {
 
   const fetchFeaturedProducts = async () => {
     try {
-      const response = await fetch(
-        "https://stitchpop-ecommerce.onrender.com/api/products?gender=men&featured=true&limit=8",
-      )
+      const response = await fetch("/api/products?gender=men&featured=true&limit=8")
       if (response.ok) {
         const data = await response.json()
         setFeaturedProducts(data)
@@ -177,11 +175,14 @@ export default function MenPage() {
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {categories.map((category) => (
-              <Link key={category.id} href={`/men/${category.name.toLowerCase().replace(/\s+/g, '-')}`}>
+              <Link key={category.id} href={`/men/${category.name.toLowerCase().replace(/\s+/g, "-")}`}>
                 <Card className="group overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">
                   <div className="relative overflow-hidden">
                     <Image
-                      src={category.image_url || "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(category.name)}
+                      src={
+                        category.image_url ||
+                        "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(category.name)
+                      }
                       alt={category.name}
                       width={300}
                       height={200}

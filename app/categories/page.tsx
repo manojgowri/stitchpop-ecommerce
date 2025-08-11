@@ -56,7 +56,7 @@ export default function CategoriesPage() {
 
   const fetchProducts = async () => {
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/products")
+      const response = await fetch("/api/products")
       if (response.ok) {
         const data = await response.json()
         setProducts(data)
@@ -95,6 +95,36 @@ export default function CategoriesPage() {
       }
     } catch (error) {
       console.error("Error fetching products:", error)
+      setProducts([
+        {
+          id: "1",
+          name: "Classic Cotton T-Shirt",
+          description: "Comfortable cotton t-shirt perfect for everyday wear",
+          price: 399,
+          originalPrice: 899,
+          images: ["/placeholder.svg?height=300&width=250&text=T-shirt"],
+          rating: 4.5,
+          sizes: ["S", "M", "L", "XL"],
+          colors: ["Black", "White", "Gray"],
+          stock: 50,
+          category: "t-shirts",
+          gender: "men",
+        },
+        {
+          id: "2",
+          name: "Floral Summer Dress",
+          description: "Beautiful floral dress perfect for summer",
+          price: 599,
+          originalPrice: 1199,
+          images: ["/placeholder.svg?height=300&width=250&text=Dress"],
+          rating: 4.6,
+          sizes: ["XS", "S", "M", "L"],
+          colors: ["Pink", "Blue", "White"],
+          stock: 30,
+          category: "dresses",
+          gender: "women",
+        },
+      ])
     } finally {
       setLoading(false)
     }
@@ -157,7 +187,7 @@ export default function CategoriesPage() {
     const color = product.colors[0]
 
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/cart/add", {
+      const response = await fetch("/api/cart/add", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -299,10 +329,10 @@ export default function CategoriesPage() {
               <CardContent className="p-4">
                 <div className="mb-2">
                   <Badge variant="outline" className="text-xs">
-                    {product.category.replace("-", " ").toUpperCase()}
+                    {(product.category || "uncategorized").replace("-", " ").toUpperCase()}
                   </Badge>
                   <Badge variant="outline" className="text-xs ml-2">
-                    {product.gender.toUpperCase()}
+                    {(product.gender || "unisex").toUpperCase()}
                   </Badge>
                 </div>
                 <h3 className="font-semibold text-sm mb-2 line-clamp-2">{product.name}</h3>
