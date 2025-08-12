@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star, Heart, ShoppingCart, Eye } from "lucide-react"
+import { Star, Heart } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -187,65 +186,81 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
   }
 
   return (
-    <Card className="group overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02]">
+    <Card className="group overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-white">
       <Link href={`/product/${product.id}`}>
-        <div className="relative aspect-square">
-          <Image
-            src={product.images?.[0] || "/placeholder.svg?height=300&width=300&text=Product"}
-            alt={product.name}
-            fill
-            className="object-cover group-hover:scale-105 transition-transform duration-300"
-          />
-          {product.is_on_sale && <Badge className="absolute top-2 left-2 bg-red-500">Sale</Badge>}
-
-          {/* Product Actions Overlay */}
-          {showActions && (
-            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-              <div className="flex space-x-2">
-                <Button size="sm" variant="secondary" asChild>
-                  <Link href={`/product/${product.id}`}>
-                    <Eye className="h-4 w-4" />
-                  </Link>
-                </Button>
-                <Button
-                  size="sm"
-                  variant="secondary"
-                  onClick={handleWishlist}
-                  className={isInWishlist ? "text-red-500" : ""}
-                >
-                  <Heart className={`h-4 w-4 ${isInWishlist ? "fill-current" : ""}`} />
-                </Button>
-                <Button size="sm" variant="secondary" onClick={handleAddToCart}>
-                  <ShoppingCart className="h-4 w-4" />
-                </Button>
+        <div className="relative aspect-square bg-gray-200">
+          {product.images?.[0] ? (
+            <Image
+              src={product.images[0] || "/placeholder.svg"}
+              alt={product.name}
+              fill
+              className="object-cover group-hover:scale-105 transition-transform duration-300"
+            />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center bg-gray-200">
+              <div className="text-center">
+                <div className="w-12 h-12 mx-auto mb-2 bg-gray-300 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
+                    />
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
+                    />
+                  </svg>
+                </div>
               </div>
             </div>
+          )}
+
+          {product.is_on_sale && <Badge className="absolute top-2 left-2 bg-red-500">Sale</Badge>}
+
+          {/* Wishlist Heart Icon */}
+          {showActions && (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="absolute top-2 right-2 h-8 w-8 p-0 bg-white/80 hover:bg-white"
+              onClick={handleWishlist}
+            >
+              <Heart className={`h-4 w-4 ${isInWishlist ? "fill-red-500 text-red-500" : "text-gray-600"}`} />
+            </Button>
           )}
         </div>
       </Link>
 
-      <CardContent className="p-4 space-y-2">
+      <CardContent className="p-4 space-y-3">
         <Link href={`/product/${product.id}`}>
-          <h3 className="font-semibold group-hover:text-gray-800 transition-colors line-clamp-2">{product.name}</h3>
+          <h3 className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors line-clamp-2">
+            {product.name}
+          </h3>
         </Link>
+
         <div className="flex items-center gap-1">
           <div className="flex items-center">
             {[...Array(5)].map((_, i) => (
               <Star
                 key={i}
-                className={`h-3 w-3 ${
+                className={`h-4 w-4 ${
                   i < Math.floor(product.rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
                 }`}
               />
             ))}
           </div>
-          <span className="text-xs text-gray-600">({product.rating || 0})</span>
+          <span className="text-sm text-gray-600">({product.rating || 4.4})</span>
         </div>
+
         <div className="flex items-center gap-2">
-          <span className="font-bold text-lg">₹{product.price?.toLocaleString()}</span>
+          <span className="font-bold text-lg text-gray-900">₹{product.price?.toLocaleString()}</span>
           {product.original_price && product.original_price > product.price && (
             <>
-              <span className="text-sm text-gray-600 line-through">₹{product.original_price.toLocaleString()}</span>
+              <span className="text-sm text-gray-500 line-through">₹{product.original_price.toLocaleString()}</span>
               <Badge variant="destructive" className="text-xs">
                 {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
               </Badge>
@@ -254,8 +269,13 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
         </div>
 
         {showActions && (
-          <div className="flex space-x-2 mt-3">
-            <Button size="sm" variant="outline" className="flex-1 bg-transparent" asChild>
+          <div className="flex space-x-2 mt-4">
+            <Button
+              size="sm"
+              variant="outline"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
+              asChild
+            >
               <Link href={`/product/${product.id}`}>View</Link>
             </Button>
             <Button size="sm" className="flex-1 bg-gray-800 text-white hover:bg-gray-700" onClick={handleBuyNow}>
@@ -267,3 +287,6 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
     </Card>
   )
 }
+
+// Default export for compatibility
+export default ProductCard
