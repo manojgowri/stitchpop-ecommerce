@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { ArrowLeft, Mail } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { resetPassword } from "@/lib/supabase"
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("")
@@ -25,21 +25,24 @@ export default function ForgotPasswordPage() {
     setMessage("")
 
     try {
-      // Get the current domain dynamically
-      const redirectUrl =
-        typeof window !== "undefined"
-          ? `${window.location.origin}/auth/reset-password`
-          : "https://stitchpop.vercel.app/auth/reset-password"
-
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
-      })
+      const { error } = await resetPassword(email)
 
       if (error) throw error
 
-      setMessage("Check your email for the password reset link!")
+      await fetch("/api/auth/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: email,
+          subject: "Reset Your Stitch POP Password",
+          type: "password_reset",
+          html: `https://www.stitchpop.in/auth/reset-password`,
+        }),
+      })
+
+      setMessage("Password reset link sent! Please check your email inbox and spam folder.")
     } catch (error: any) {
-      setError(error.message || "An error occurred")
+      setError(error.message || "An error occurred while sending the reset email")
     } finally {
       setLoading(false)
     }

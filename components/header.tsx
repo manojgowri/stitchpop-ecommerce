@@ -16,9 +16,23 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
-import { Search, ShoppingCart, User, Menu, X } from 'lucide-react'
+import {
+  NavigationMenu,
+  NavigationMenuContent,
+  NavigationMenuItem,
+  NavigationMenuLink,
+  NavigationMenuList,
+  NavigationMenuTrigger,
+} from "@/components/ui/navigation-menu"
+import { Search, ShoppingCart, User, Menu, X } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { CartSlideOver } from "@/components/cart-slide-over"
+
+interface Category {
+  id: string
+  name: string
+  gender: string
+}
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
@@ -26,6 +40,7 @@ export function Header() {
   const [user, setUser] = useState<any>(null)
   const [cartCount, setCartCount] = useState(0)
   const [searchQuery, setSearchQuery] = useState("")
+  const [categories, setCategories] = useState<Category[]>([])
   const router = useRouter()
 
   useEffect(() => {
@@ -35,6 +50,10 @@ export function Header() {
         data: { session },
       } = await supabase.auth.getSession()
       setUser(session?.user || null)
+
+      if (session?.user) {
+        loadCartCount(session.user.id)
+      }
     }
 
     getSession()
@@ -44,10 +63,47 @@ export function Header() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null)
+      if (session?.user) {
+        loadCartCount(session.user.id)
+      } else {
+        setCartCount(0)
+      }
     })
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    const loadCategories = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("categories")
+          .select("id, name, gender")
+          .eq("is_active", true)
+          .order("name")
+
+        if (error) throw error
+        setCategories(data || [])
+      } catch (error) {
+        console.error("Error loading categories:", error)
+      }
+    }
+
+    loadCategories()
+  }, [])
+
+  const loadCartCount = async (userId: string) => {
+    try {
+      const { data, error } = await supabase.from("cart").select("quantity").eq("user_id", userId)
+
+      if (error) throw error
+
+      const totalCount = data?.reduce((sum, item) => sum + item.quantity, 0) || 0
+      setCartCount(totalCount)
+    } catch (error) {
+      console.error("Error loading cart count:", error)
+    }
+  }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -61,9 +117,13 @@ export function Header() {
     }
   }
 
+  const menCategories = categories.filter((cat) => cat.gender === "men" || cat.gender === "unisex")
+  const womenCategories = categories.filter((cat) => cat.gender === "women" || cat.gender === "unisex")
+  const kidsCategories = categories.filter((cat) => cat.gender === "kids")
+
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 w-full border-b bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/60">
         <div className="container mx-auto px-4">
           <div className="flex h-16 items-center justify-between">
             {/* Mobile menu button */}
@@ -74,71 +134,111 @@ export function Header() {
             {/* Logo */}
             <Link href="/" className="flex items-center space-x-2">
               <div className="relative h-10 w-10">
-                <Image src="/logo.png" alt="Stitch POP Logo" fill className="object-contain" />
+                <Image
+                  src="https://hebbkx1anhila5yf.public.blob.vercel-storage.com/logo-I7pzZBxnNQzl0at8mBVML2RAfc8OLW.png"
+                  alt="Stitch POP Logo"
+                  fill
+                  className="object-contain"
+                />
               </div>
-              <span className="text-xl font-bold">Stitch POP</span>
+              <span className="text-xl font-bold text-gray-800">Stitch POP</span>
             </Link>
 
             {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost">Men</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem asChild>
-                    <Link href="/men">All Men's</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/men/t-shirts">T-Shirts</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/men/shirts">Shirts</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/men/jeans">Jeans</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/men/jackets">Jackets</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+            <NavigationMenu className="hidden md:flex">
+              <NavigationMenuList>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger asChild>
+                    <Link
+                      href="/men"
+                      className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
+                    >
+                      Men
+                    </Link>
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                      {menCategories.map((category) => (
+                        <NavigationMenuLink key={category.id} asChild>
+                          <Link
+                            href={`/men/${category.name.toLowerCase().replace(/\s+/g, "-")}`}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900"
+                          >
+                            <div className="text-sm font-medium leading-none">{category.name}</div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
 
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost">Women</Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent>
-                  <DropdownMenuItem asChild>
-                    <Link href="/women">All Women's</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/women/tops">Tops</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/women/dresses">Dresses</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/women/jeans">Jeans</Link>
-                  </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
-                    <Link href="/women/jackets">Jackets</Link>
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger asChild>
+                    <Link
+                      href="/women"
+                      className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
+                    >
+                      Women
+                    </Link>
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                      {womenCategories.map((category) => (
+                        <NavigationMenuLink key={category.id} asChild>
+                          <Link
+                            href={`/women/${category.name.toLowerCase().replace(/\s+/g, "-")}`}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900"
+                          >
+                            <div className="text-sm font-medium leading-none">{category.name}</div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
 
-              <Link href="/categories">
-                <Button variant="ghost">Categories</Button>
-              </Link>
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger asChild>
+                    <Link
+                      href="/kids"
+                      className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
+                    >
+                      Kids
+                    </Link>
+                  </NavigationMenuTrigger>
+                  <NavigationMenuContent>
+                    <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                      {kidsCategories.map((category) => (
+                        <NavigationMenuLink key={category.id} asChild>
+                          <Link
+                            href={`/kids/${category.name.toLowerCase().replace(/\s+/g, "-")}`}
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900"
+                          >
+                            <div className="text-sm font-medium leading-none">{category.name}</div>
+                          </Link>
+                        </NavigationMenuLink>
+                      ))}
+                    </div>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
 
-              <Link href="/themes">
-                <Button variant="ghost">Themes</Button>
-              </Link>
+                <NavigationMenuItem>
+                  <Link href="/themes" legacyBehavior passHref>
+                    <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50">
+                      Themes
+                    </NavigationMenuLink>
+                  </Link>
+                </NavigationMenuItem>
 
-              <Link href="/sale">
-                <Button variant="ghost">Sale</Button>
-              </Link>
-            </nav>
+                <NavigationMenuItem>
+                  <Link href="/stitch-drop" legacyBehavior passHref>
+                    <NavigationMenuLink className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50">
+                      Stitch Drop
+                    </NavigationMenuLink>
+                  </Link>
+                </NavigationMenuItem>
+              </NavigationMenuList>
+            </NavigationMenu>
 
             {/* Search Bar */}
             <form onSubmit={handleSearch} className="hidden md:flex items-center space-x-2 flex-1 max-w-md mx-8">
@@ -149,7 +249,7 @@ export function Header() {
                   placeholder="Search products..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-10"
+                  className="pl-10 border-gray-300 focus:border-gray-500"
                 />
               </div>
             </form>
@@ -157,10 +257,15 @@ export function Header() {
             {/* Right side actions */}
             <div className="flex items-center space-x-4">
               {/* Cart */}
-              <Button variant="ghost" size="sm" className="relative" onClick={() => setIsCartOpen(true)}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="relative text-gray-700 hover:text-gray-900"
+                onClick={() => setIsCartOpen(true)}
+              >
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
-                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs">
+                  <Badge className="absolute -top-2 -right-2 h-5 w-5 rounded-full p-0 flex items-center justify-center text-xs bg-gray-800 text-white">
                     {cartCount}
                   </Badge>
                 )}
@@ -170,7 +275,7 @@ export function Header() {
               {user ? (
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900">
                       <User className="h-5 w-5" />
                     </Button>
                   </DropdownMenuTrigger>
@@ -180,6 +285,9 @@ export function Header() {
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <Link href="/orders">Orders</Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/wishlist">Wishlist</Link>
                     </DropdownMenuItem>
                     {user.user_metadata?.is_admin && (
                       <>
@@ -196,12 +304,14 @@ export function Header() {
               ) : (
                 <div className="flex items-center space-x-2">
                   <Link href="/auth/login">
-                    <Button variant="ghost" size="sm">
+                    <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900">
                       Sign In
                     </Button>
                   </Link>
                   <Link href="/auth/register">
-                    <Button size="sm">Sign Up</Button>
+                    <Button size="sm" className="bg-gray-800 text-white hover:bg-gray-700">
+                      Sign Up
+                    </Button>
                   </Link>
                 </div>
               )}
@@ -213,28 +323,28 @@ export function Header() {
             <div className="md:hidden border-t py-4">
               <nav className="flex flex-col space-y-4">
                 <Link href="/men" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start">
+                  <Button variant="ghost" className="w-full justify-start text-gray-700">
                     Men
                   </Button>
                 </Link>
                 <Link href="/women" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start">
+                  <Button variant="ghost" className="w-full justify-start text-gray-700">
                     Women
                   </Button>
                 </Link>
-                <Link href="/categories" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start">
-                    Categories
+                <Link href="/kids" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start text-gray-700">
+                    Kids
                   </Button>
                 </Link>
                 <Link href="/themes" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start">
+                  <Button variant="ghost" className="w-full justify-start text-gray-700">
                     Themes
                   </Button>
                 </Link>
-                <Link href="/sale" onClick={() => setIsMenuOpen(false)}>
-                  <Button variant="ghost" className="w-full justify-start">
-                    Sale
+                <Link href="/stitch-drop" onClick={() => setIsMenuOpen(false)}>
+                  <Button variant="ghost" className="w-full justify-start text-gray-700">
+                    Stitch Drop
                   </Button>
                 </Link>
 
@@ -247,7 +357,7 @@ export function Header() {
                       placeholder="Search products..."
                       value={searchQuery}
                       onChange={(e) => setSearchQuery(e.target.value)}
-                      className="pl-10"
+                      className="pl-10 border-gray-300"
                     />
                   </div>
                 </form>

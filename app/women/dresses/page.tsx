@@ -2,13 +2,10 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, ArrowLeft } from 'lucide-react'
 import { supabase } from "@/lib/supabase"
+import ProductCard from "@/components/product-card"
 
 interface Product {
   id: string
@@ -22,6 +19,10 @@ interface Product {
   colors: string[]
   stock: number
   is_on_sale: boolean
+  categories: {
+    name: string
+    gender: string
+  }
 }
 
 export default function WomenDressesPage() {
@@ -42,43 +43,53 @@ export default function WomenDressesPage() {
     try {
       const { data, error } = await supabase
         .from("products")
-        .select("*")
-        .eq("gender", "women")
+        .select(`
+          *,
+          categories!inner(name, gender)
+        `)
+        .eq("categories.name", "Dresses")
+        .eq("categories.gender", "women")
         .eq("is_active", true)
-        .contains("categories", ["dresses"])
 
       if (error) throw error
 
       setProducts(data || [])
     } catch (error) {
       console.error("Error fetching dresses:", error)
-      // Fallback data
       setProducts([
         {
           id: "1",
           name: "Floral Summer Dress",
           description: "Beautiful floral print dress perfect for summer occasions",
-          price: 599,
-          original_price: 1199,
+          price: 1599,
+          original_price: 2199,
           images: ["/placeholder.svg?height=400&width=300&text=Floral+Dress"],
           rating: 4.6,
           sizes: ["XS", "S", "M", "L"],
           colors: ["Pink", "Blue", "White"],
           stock: 30,
           is_on_sale: true,
+          categories: {
+            name: "Dresses",
+            gender: "women",
+          },
         },
         {
           id: "2",
           name: "Little Black Dress",
           description: "Elegant black dress suitable for formal events",
-          price: 899,
-          original_price: 1799,
+          price: 2899,
+          original_price: 3799,
           images: ["/placeholder.svg?height=400&width=300&text=Black+Dress"],
           rating: 4.8,
           sizes: ["XS", "S", "M", "L"],
           colors: ["Black"],
           stock: 20,
           is_on_sale: true,
+          categories: {
+            name: "Dresses",
+            gender: "women",
+          },
         },
       ])
     } finally {
@@ -87,7 +98,7 @@ export default function WomenDressesPage() {
   }
 
   const sortProducts = () => {
-    let sorted = [...products]
+    const sorted = [...products]
 
     switch (sortBy) {
       case "price-low":
@@ -112,30 +123,49 @@ export default function WomenDressesPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading dresses...</p>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="container mx-auto px-4">
-        {/* Breadcrumb */}
-        <div className="mb-6">
-          <Link href="/women" className="inline-flex items-center text-sm text-gray-600 hover:text-primary mb-4">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Women's Collection
-          </Link>
-          <h1 className="text-3xl font-bold mb-2">Women's Dresses</h1>
-          <p className="text-gray-600">Elegant dresses for every occasion</p>
+    <div className="min-h-screen bg-white">
+      {/* Hero Section */}
+      <section className="relative bg-gray-50 py-16">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-4">Women's Dresses</h1>
+            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+              Elegant dresses for every occasion - from casual to formal
+            </p>
+            <div className="mt-6">
+              <nav className="text-sm text-gray-600">
+                <Link href="/" className="hover:text-gray-800">
+                  Home
+                </Link>
+                <span className="mx-2">/</span>
+                <Link href="/women" className="hover:text-gray-800">
+                  Women
+                </Link>
+                <span className="mx-2">/</span>
+                <span className="text-gray-800">Dresses</span>
+              </nav>
+            </div>
+          </div>
         </div>
+      </section>
 
-        {/* Filters */}
-        <div className="bg-white rounded-lg p-4 mb-8 shadow-sm">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="text-sm text-gray-600">
-              Showing {filteredProducts.length} products
+      {/* Products Section */}
+      <section className="py-16">
+        <div className="container mx-auto px-4">
+          {/* Filter and Sort */}
+          <div className="flex justify-between items-center mb-8">
+            <div className="flex items-center space-x-4">
+              <span className="text-gray-600">{filteredProducts.length} products found</span>
             </div>
             <div className="flex items-center space-x-4">
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -152,85 +182,24 @@ export default function WomenDressesPage() {
               </Select>
             </div>
           </div>
+
+          {filteredProducts.length > 0 ? (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              {filteredProducts.map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          ) : (
+            <div className="text-center py-20">
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">No Dresses Available</h2>
+              <p className="text-gray-600 mb-8">Check back soon for new arrivals!</p>
+              <Button asChild className="bg-gray-800 text-white hover:bg-gray-700">
+                <Link href="/women">Browse All Women's Items</Link>
+              </Button>
+            </div>
+          )}
         </div>
-
-        {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {filteredProducts.map((product) => (
-            <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="relative overflow-hidden">
-                <Image
-                  src={product.images[0] || "/placeholder.svg"}
-                  alt={product.name}
-                  width={300}
-                  height={400}
-                  className="w-full h-80 object-cover group-hover:scale-105 transition-transform duration-300"
-                />
-                {product.is_on_sale && product.original_price && (
-                  <Badge className="absolute top-2 left-2 bg-red-500">
-                    {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
-                  </Badge>
-                )}
-                {product.stock <= 5 && product.stock > 0 && (
-                  <Badge className="absolute top-2 right-2 bg-orange-500">Low Stock</Badge>
-                )}
-                {product.stock === 0 && <Badge className="absolute top-2 right-2 bg-gray-500">Out of Stock</Badge>}
-              </div>
-              <CardContent className="p-4">
-                <h3 className="font-semibold mb-2 line-clamp-2">{product.name}</h3>
-                <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
-                
-                <div className="flex items-center mb-2">
-                  <div className="flex items-center">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`h-4 w-4 ${
-                          i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"
-                        }`}
-                      />
-                    ))}
-                  </div>
-                  <span className="text-sm text-gray-600 ml-1">({product.rating})</span>
-                </div>
-
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center space-x-2">
-                    <span className="font-bold text-lg">₹{product.price}</span>
-                    {product.original_price && (
-                      <span className="text-sm text-gray-500 line-through">₹{product.original_price}</span>
-                    )}
-                  </div>
-                </div>
-
-                <div className="text-xs text-gray-600 mb-3">
-                  {product.sizes.length} sizes • {product.colors.length} colors
-                </div>
-
-                <Button 
-                  className="w-full" 
-                  size="sm"
-                  disabled={product.stock === 0}
-                  asChild
-                >
-                  <Link href={`/product/${product.id}`}>
-                    {product.stock === 0 ? "Out of Stock" : "View Details"}
-                  </Link>
-                </Button>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-
-        {filteredProducts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-gray-600 text-lg">No dresses found</p>
-            <Button className="mt-4" asChild>
-              <Link href="/women">Browse All Women's Products</Link>
-            </Button>
-          </div>
-        )}
-      </div>
+      </section>
     </div>
   )
 }

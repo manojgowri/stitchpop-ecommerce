@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Star, Heart, Share2, Truck, Shield, RefreshCw, Plus, Minus } from "lucide-react"
+import { Star, Heart, Share2, Truck, Shield, RefreshCw, Plus, Minus, ShoppingCart } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
@@ -41,6 +41,7 @@ export default function ProductPage() {
   const [quantity, setQuantity] = useState(1)
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [isInWishlist, setIsInWishlist] = useState(false)
   const router = useRouter()
   const params = useParams()
   const { toast } = useToast()
@@ -58,6 +59,12 @@ export default function ProductPage() {
       fetchProduct(params.id as string)
     }
   }, [params.id])
+
+  useEffect(() => {
+    if (user && product) {
+      checkWishlistStatus()
+    }
+  }, [user, product])
 
   const fetchProduct = async (productId: string) => {
     try {
@@ -96,6 +103,26 @@ export default function ProductPage() {
     }
   }
 
+  const checkWishlistStatus = async () => {
+    if (!user || !product) return
+
+    try {
+      const { data, error } = await supabase
+        .from("wishlist")
+        .select("id")
+        .eq("user_id", user.id)
+        .eq("product_id", product.id)
+        .single()
+
+      if (!error && data) {
+        setIsInWishlist(true)
+      }
+    } catch (error) {
+      // Item not in wishlist
+      setIsInWishlist(false)
+    }
+  }
+
   const handleAddToCart = async () => {
     if (!user) {
       toast({
@@ -117,27 +144,126 @@ export default function ProductPage() {
     }
 
     try {
-      const { error } = await supabase.from("cart").insert([
-        {
-          user_id: user.id,
-          product_id: product!.id,
-          size: selectedSize,
-          color: selectedColor,
-          quantity: quantity,
-        },
-      ])
+      // Check if item already exists in cart
+      const { data: existingItem, error: checkError } = await supabase
+        .from("cart")
+        .select("id, quantity")
+        .eq("user_id", user.id)
+        .eq("product_id", product!.id)
+        .eq("size", selectedSize)
+        .eq("color", selectedColor)
+        .single()
 
-      if (error) throw error
+      if (existingItem) {
+        // Update existing item
+        const { error } = await supabase
+          .from("cart")
+          .update({ quantity: existingItem.quantity + quantity })
+          .eq("id", existingItem.id)
+
+        if (error) throw error
+      } else {
+        // Add new item
+        const { error } = await supabase.from("cart").insert([
+          {
+            user_id: user.id,
+            product_id: product!.id,
+            size: selectedSize,
+            color: selectedColor,
+            quantity: quantity,
+          },
+        ])
+
+        if (error) throw error
+      }
 
       toast({
-        title: "Success",
+        title: "Added to cart",
         description: `${quantity} item(s) added to cart`,
       })
+
+      // Trigger cart count update
+      window.dispatchEvent(new CustomEvent("cartUpdated"))
     } catch (error) {
       console.error("Error adding to cart:", error)
       toast({
         title: "Error",
         description: "Failed to add item to cart",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleBuyNow = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to purchase items",
+        variant: "destructive",
+      })
+      router.push("/auth/login")
+      return
+    }
+
+    if (!selectedSize || !selectedColor) {
+      toast({
+        title: "Selection required",
+        description: "Please select size and color before purchasing",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Add to cart first, then redirect to checkout
+    await handleAddToCart()
+    router.push("/checkout")
+  }
+
+  const handleWishlist = async () => {
+    if (!user) {
+      toast({
+        title: "Sign in required",
+        description: "Please sign in to add items to wishlist",
+        variant: "destructive",
+      })
+      router.push("/auth/login")
+      return
+    }
+
+    try {
+      if (isInWishlist) {
+        // Remove from wishlist
+        const { error } = await supabase.from("wishlist").delete().eq("user_id", user.id).eq("product_id", product!.id)
+
+        if (error) throw error
+
+        setIsInWishlist(false)
+        toast({
+          title: "Removed from wishlist",
+          description: "Item has been removed from your wishlist",
+        })
+      } else {
+        // Add to wishlist
+        const { error } = await supabase.from("wishlist").insert([
+          {
+            user_id: user.id,
+            product_id: product!.id,
+          },
+        ])
+
+        if (error) throw error
+
+        setIsInWishlist(true)
+        toast({
+          title: "Added to wishlist",
+          description: "Item has been added to your wishlist",
+        })
+      }
+    } catch (error) {
+      console.error("Error updating wishlist:", error)
+      toast({
+        title: "Error",
+        description: "Failed to update wishlist",
         variant: "destructive",
       })
     }
@@ -152,18 +278,21 @@ export default function ProductPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary"></div>
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto"></div>
+          <p className="mt-4 text-gray-600">Loading product...</p>
+        </div>
       </div>
     )
   }
 
   if (!product) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Product not found</h2>
-          <Button onClick={() => router.push("/")} size="lg">
+          <Button onClick={() => router.push("/")} size="lg" className="bg-gray-800 text-white hover:bg-gray-700">
             Go Home
           </Button>
         </div>
@@ -172,14 +301,14 @@ export default function ProductPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
+    <div className="min-h-screen bg-white py-8">
       <div className="container mx-auto px-4">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Product Images */}
           <div className="space-y-4">
-            <div className="aspect-square overflow-hidden rounded-lg bg-white relative">
+            <div className="aspect-square overflow-hidden rounded-lg bg-gray-50 relative">
               <Image
-                src={product.images[selectedImage] || "/placeholder.svg?height=500&width=500"}
+                src={product.images[selectedImage] || "/placeholder.svg?height=500&width=500&text=Product"}
                 alt={product.name}
                 width={500}
                 height={500}
@@ -199,11 +328,11 @@ export default function ProductPage() {
                   key={index}
                   onClick={() => setSelectedImage(index)}
                   className={`aspect-square overflow-hidden rounded-lg border-2 ${
-                    selectedImage === index ? "border-primary" : "border-gray-200"
+                    selectedImage === index ? "border-gray-800" : "border-gray-200"
                   }`}
                 >
                   <Image
-                    src={image || "/placeholder.svg?height=100&width=100"}
+                    src={image || "/placeholder.svg?height=100&width=100&text=Product"}
                     alt={`${product.name} ${index + 1}`}
                     width={100}
                     height={100}
@@ -218,8 +347,14 @@ export default function ProductPage() {
           <div className="space-y-6">
             <div>
               <div className="flex items-center gap-2 mb-2">
-                <Badge variant="outline">{product.categories?.name}</Badge>
-                {product.themes?.name && <Badge variant="outline">{product.themes.name}</Badge>}
+                <Badge variant="outline" className="border-gray-300">
+                  {product.categories?.name}
+                </Badge>
+                {product.themes?.name && (
+                  <Badge variant="outline" className="border-gray-300">
+                    {product.themes.name}
+                  </Badge>
+                )}
               </div>
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{product.name}</h1>
               <div className="flex items-center space-x-4 mb-4">
@@ -349,7 +484,7 @@ export default function ProductPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Size: {selectedSize}</label>
                 <Select value={selectedSize} onValueChange={setSelectedSize}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full border-gray-300">
                     <SelectValue placeholder="Select size" />
                   </SelectTrigger>
                   <SelectContent>
@@ -365,7 +500,7 @@ export default function ProductPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Color: {selectedColor}</label>
                 <Select value={selectedColor} onValueChange={setSelectedColor}>
-                  <SelectTrigger className="w-full">
+                  <SelectTrigger className="w-full border-gray-300">
                     <SelectValue placeholder="Select color" />
                   </SelectTrigger>
                   <SelectContent>
@@ -381,7 +516,13 @@ export default function ProductPage() {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Quantity</label>
                 <div className="flex items-center space-x-3">
-                  <Button variant="outline" size="sm" onClick={() => handleQuantityChange(-1)} disabled={quantity <= 1}>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleQuantityChange(-1)}
+                    disabled={quantity <= 1}
+                    className="border-gray-300"
+                  >
                     <Minus className="h-4 w-4" />
                   </Button>
                   <span className="text-lg font-medium w-12 text-center">{quantity}</span>
@@ -390,6 +531,7 @@ export default function ProductPage() {
                     size="sm"
                     onClick={() => handleQuantityChange(1)}
                     disabled={quantity >= product.stock}
+                    className="border-gray-300"
                   >
                     <Plus className="h-4 w-4" />
                   </Button>
@@ -397,15 +539,46 @@ export default function ProductPage() {
               </div>
             </div>
 
-            <div className="flex space-x-4">
-              <Button size="lg" className="flex-1" onClick={handleAddToCart} disabled={product.stock === 0}>
-                {product.stock === 0 ? "Out of Stock" : `Add ${quantity} to Cart`}
+            <div className="space-y-3">
+              <div className="flex space-x-3">
+                <Button
+                  size="lg"
+                  className="flex-1 bg-gray-800 text-white hover:bg-gray-700"
+                  onClick={handleAddToCart}
+                  disabled={product.stock === 0}
+                >
+                  <ShoppingCart className="h-5 w-5 mr-2" />
+                  {product.stock === 0 ? "Out of Stock" : `Add to Cart`}
+                </Button>
+                <Button
+                  variant="outline"
+                  size="lg"
+                  onClick={handleWishlist}
+                  className={`border-gray-300 ${isInWishlist ? "text-red-500 border-red-300" : "text-gray-600"}`}
+                >
+                  <Heart className={`h-5 w-5 ${isInWishlist ? "fill-current" : ""}`} />
+                </Button>
+                <Button variant="outline" size="lg" className="border-gray-300 text-gray-600 bg-transparent">
+                  <Share2 className="h-5 w-5" />
+                </Button>
+              </div>
+
+              <Button
+                size="lg"
+                className="w-full bg-blue-600 text-white hover:bg-blue-700"
+                onClick={handleBuyNow}
+                disabled={product.stock === 0}
+              >
+                Buy Now
               </Button>
-              <Button variant="outline" size="lg">
-                <Heart className="h-5 w-5" />
-              </Button>
-              <Button variant="outline" size="lg">
-                <Share2 className="h-5 w-5" />
+
+              <Button
+                variant="outline"
+                size="lg"
+                className="w-full border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
+                onClick={() => router.push("/cart")}
+              >
+                View Cart
               </Button>
             </div>
 
@@ -416,22 +589,22 @@ export default function ProductPage() {
             )}
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="flex items-center space-x-3 p-4 bg-white rounded-lg">
-                <Truck className="h-6 w-6 text-primary" />
+              <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
+                <Truck className="h-6 w-6 text-gray-800" />
                 <div>
                   <p className="font-medium text-sm">Free Shipping</p>
                   <p className="text-xs text-gray-600">On orders over ₹999</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3 p-4 bg-white rounded-lg">
-                <Shield className="h-6 w-6 text-primary" />
+              <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
+                <Shield className="h-6 w-6 text-gray-800" />
                 <div>
                   <p className="font-medium text-sm">Secure Payment</p>
                   <p className="text-xs text-gray-600">100% secure</p>
                 </div>
               </div>
-              <div className="flex items-center space-x-3 p-4 bg-white rounded-lg">
-                <RefreshCw className="h-6 w-6 text-primary" />
+              <div className="flex items-center space-x-3 p-4 bg-gray-50 rounded-lg">
+                <RefreshCw className="h-6 w-6 text-gray-800" />
                 <div>
                   <p className="font-medium text-sm">Easy Returns</p>
                   <p className="text-xs text-gray-600">30-day policy</p>

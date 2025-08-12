@@ -49,13 +49,25 @@ export default function CartPage() {
 
   const fetchCartItems = async (userId: string) => {
     try {
-      const response = await fetch(`https://stitchpop-ecommerce.onrender.com/api/cart/${userId}`)
+      const response = await fetch(`/api/cart?userId=${userId}`)
       if (response.ok) {
         const data = await response.json()
         setCartItems(data)
+      } else {
+        console.error("Failed to fetch cart items")
+        toast({
+          title: "Error",
+          description: "Failed to load cart items",
+          variant: "destructive",
+        })
       }
     } catch (error) {
       console.error("Error fetching cart items:", error)
+      toast({
+        title: "Error",
+        description: "Failed to load cart items",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
@@ -65,19 +77,24 @@ export default function CartPage() {
     if (newQuantity < 1) return
 
     try {
-      const response = await fetch("https://stitchpop-ecommerce.onrender.com/api/cart/update", {
+      const response = await fetch(`/api/cart/${itemId}`, {
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          item_id: itemId,
           quantity: newQuantity,
         }),
       })
 
       if (response.ok) {
         setCartItems((items) => items.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item)))
+        toast({
+          title: "Success",
+          description: "Quantity updated",
+        })
+      } else {
+        throw new Error("Failed to update quantity")
       }
     } catch (error) {
       console.error("Error updating quantity:", error)
@@ -91,7 +108,7 @@ export default function CartPage() {
 
   const removeItem = async (itemId: string) => {
     try {
-      const response = await fetch(`https://stitchpop-ecommerce.onrender.com/api/cart/remove/${itemId}`, {
+      const response = await fetch(`/api/cart/${itemId}`, {
         method: "DELETE",
       })
 
@@ -101,6 +118,8 @@ export default function CartPage() {
           title: "Success",
           description: "Item removed from cart",
         })
+      } else {
+        throw new Error("Failed to remove item")
       }
     } catch (error) {
       console.error("Error removing item:", error)

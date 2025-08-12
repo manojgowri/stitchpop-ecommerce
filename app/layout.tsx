@@ -22,14 +22,19 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  metadataBase: new URL("https://stitchpop.vercel.app"),
+  metadataBase: new URL("https://www.stitchpop.in"),
   alternates: {
     canonical: "/",
+  },
+  icons: {
+    icon: "/favicon.ico",
+    shortcut: "/favicon.ico",
+    apple: "/favicon.ico",
   },
   openGraph: {
     title: "Stitch POP - Premium Fashion & Lifestyle",
     description: "Premium fashion and lifestyle brand offering the latest trends in clothing for men and women.",
-    url: "https://stitchpop.vercel.app",
+    url: "https://www.stitchpop.in",
     siteName: "Stitch POP",
     images: [
       {
@@ -62,7 +67,7 @@ export const metadata: Metadata = {
   verification: {
     google: "2dIuLHsZ-VrZVK1ZQTAuLFqT7eaP7hameErs36wo7VI",
   },
-    generator: 'v0.dev'
+    generator: 'v0.app'
 }
 
 export default function RootLayout({
@@ -74,6 +79,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <head>
         <meta name="google-site-verification" content="2dIuLHsZ-VrZVK1ZQTAuLFqT7eaP7hameErs36wo7VI" />
+        <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>

@@ -13,7 +13,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Eye, EyeOff } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { signUpWithEmail, signInWithGoogle } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
 export default function RegisterPage() {
@@ -52,24 +52,27 @@ export default function RegisterPage() {
     }
 
     try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            name: name,
-          },
-        },
-      })
+      const { data, error } = await signUpWithEmail(email, password, name)
 
       if (error) throw error
 
-      toast({
-        title: "Account created!",
-        description: "Please check your email to verify your account.",
+      await fetch("/api/auth/send-email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          to: email,
+          subject: "Welcome to Stitch POP - Verify Your Email",
+          type: "signup_confirmation",
+          html: `https://www.stitchpop.in/auth/callback`,
+        }),
       })
 
-      router.push("/auth/login")
+      toast({
+        title: "Account created successfully!",
+        description: "Please check your email to verify your account before signing in.",
+      })
+
+      router.push("/auth/login?message=Please check your email to verify your account")
     } catch (error: any) {
       setError(error.message || "An error occurred during sign up")
     } finally {
@@ -79,12 +82,7 @@ export default function RegisterPage() {
 
   const handleGoogleSignUp = async () => {
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/auth/callback`,
-        },
-      })
+      const { error } = await signInWithGoogle()
 
       if (error) throw error
     } catch (error: any) {

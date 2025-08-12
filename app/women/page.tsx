@@ -6,8 +6,9 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star } from "lucide-react"
+import { Star, Heart, ShoppingCart } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import { useToast } from "@/hooks/use-toast"
 
 interface Product {
   id: string
@@ -20,6 +21,7 @@ interface Product {
 }
 
 interface Category {
+  id: string
   name: string
   slug: string
   image: string
@@ -28,72 +30,91 @@ interface Category {
 
 export default function WomenPage() {
   const [featuredProducts, setFeaturedProducts] = useState<Product[]>([])
+  const [categories, setCategories] = useState<Category[]>([])
   const [loading, setLoading] = useState(true)
-
-  const categories: Category[] = [
-    {
-      name: "Dresses",
-      slug: "dresses",
-      image: "/placeholder.svg?height=200&width=300&text=Dresses",
-      count: 38,
-    },
-    {
-      name: "Tops",
-      slug: "tops",
-      image: "/placeholder.svg?height=200&width=300&text=Tops",
-      count: 42,
-    },
-    {
-      name: "Jeans",
-      slug: "jeans",
-      image: "/placeholder.svg?height=200&width=300&text=Women's+Jeans",
-      count: 25,
-    },
-    {
-      name: "Jackets",
-      slug: "jackets",
-      image: "/placeholder.svg?height=200&width=300&text=Women's+Jackets",
-      count: 18,
-    },
-  ]
+  const { toast } = useToast()
 
   useEffect(() => {
-    fetchFeaturedProducts()
+    fetchData()
   }, [])
 
-  const fetchFeaturedProducts = async () => {
+  const fetchData = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: categoriesData, error: categoriesError } = await supabase
+        .from("categories")
+        .select(`
+          id,
+          name
+        `)
+        .eq("gender", "women")
+        .eq("is_active", true)
+
+      if (categoriesError) throw categoriesError
+
+      // Get product counts for each category separately
+      const categoriesWithCounts = await Promise.all(
+        (categoriesData || []).map(async (category) => {
+          const { count } = await supabase
+            .from("products")
+            .select("*", { count: "exact", head: true })
+            .eq("gender", "women")
+            .eq("is_active", true)
+            .in("category_id", [category.id])
+
+          return {
+            id: category.id,
+            name: category.name,
+            slug: category.name.toLowerCase().replace(/\s+/g, "-"),
+            image: `/placeholder.svg?height=200&width=300&text=${encodeURIComponent(category.name)}`,
+            count: count || 0,
+          }
+        }),
+      )
+
+      setCategories(categoriesWithCounts)
+
+      // Fetch featured products
+      const { data: productsData, error: productsError } = await supabase
         .from("products")
         .select("*")
         .eq("gender", "women")
         .eq("is_active", true)
         .limit(8)
 
-      if (error) throw error
+      if (productsError) throw productsError
 
-      setFeaturedProducts(data || [])
+      setFeaturedProducts(productsData || [])
     } catch (error) {
-      console.error("Error fetching featured products:", error)
+      console.error("Error fetching data:", error)
       // Fallback data
-      setFeaturedProducts([
+      setCategories([
         {
           id: "1",
-          name: "Floral Summer Dress",
-          price: 599,
-          original_price: 1199,
-          images: ["/placeholder.svg?height=300&width=250&text=Women's+Dress"],
-          rating: 4.6,
-          category: "dresses",
+          name: "Dresses",
+          slug: "dresses",
+          image: "/placeholder.svg?height=200&width=300&text=Dresses",
+          count: 1,
         },
         {
           id: "2",
-          name: "Casual Crop Top",
-          price: 299,
-          original_price: 599,
-          images: ["/placeholder.svg?height=300&width=250&text=Women's+Top"],
-          rating: 4.4,
-          category: "tops",
+          name: "Tops",
+          slug: "tops",
+          image: "/placeholder.svg?height=200&width=300&text=Tops",
+          count: 0,
+        },
+        {
+          id: "3",
+          name: "Jeans",
+          slug: "jeans",
+          image: "/placeholder.svg?height=200&width=300&text=Women's+Jeans",
+          count: 0,
+        },
+        {
+          id: "4",
+          name: "Jackets",
+          slug: "jackets",
+          image: "/placeholder.svg?height=200&width=300&text=Women's+Jackets",
+          count: 0,
         },
       ])
     } finally {
@@ -101,21 +122,85 @@ export default function WomenPage() {
     }
   }
 
+  const handleAddToCart = async (productId: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        toast({
+          title: "Sign in required",
+          description: "Please sign in to add items to cart",
+          variant: "destructive",
+        })
+        return
+      }
+
+      const response = await fetch("/api/cart/add", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ productId, quantity: 1 }),
+      })
+
+      if (response.ok) {
+        toast({
+          title: "Added to cart",
+          description: "Item has been added to your cart",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to cart",
+        variant: "destructive",
+      })
+    }
+  }
+
+  const handleAddToWishlist = async (productId: string) => {
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+
+      if (!user) {
+        toast({
+          title: "Sign in required",
+          description: "Please sign in to add items to wishlist",
+          variant: "destructive",
+        })
+        return
+      }
+
+      toast({
+        title: "Added to wishlist",
+        description: "Item has been added to your wishlist",
+      })
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to add item to wishlist",
+        variant: "destructive",
+      })
+    }
+  }
+
   return (
     <div className="min-h-screen">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-r from-pink-600 to-purple-600 text-white">
+      <section className="relative bg-gradient-to-r from-gray-800 to-gray-600 text-white">
         <div className="container mx-auto px-4 py-20">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h1 className="text-4xl md:text-6xl font-bold leading-tight">
                 Women's
-                <span className="block text-pink-200">Collection</span>
+                <span className="block text-gray-300">Collection</span>
               </h1>
-              <p className="text-xl text-pink-100">
+              <p className="text-xl text-gray-200">
                 Embrace your style with our curated collection of women's fashion. From elegant dresses to casual wear.
               </p>
-              <Button size="lg" className="bg-pink-200 text-pink-800 hover:bg-pink-300">
+              <Button size="lg" className="bg-gray-200 text-gray-800 hover:bg-gray-300">
                 Shop Now
               </Button>
             </div>
@@ -203,6 +288,17 @@ export default function WomenPage() {
                         {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
                       </Badge>
                     )}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      className="absolute top-2 right-2 bg-white/80 hover:bg-white"
+                      onClick={(e) => {
+                        e.preventDefault()
+                        handleAddToWishlist(product.id)
+                      }}
+                    >
+                      <Heart className="h-4 w-4" />
+                    </Button>
                   </div>
                   <CardContent className="p-4">
                     <h3 className="font-semibold text-sm mb-2 line-clamp-2">{product.name}</h3>
@@ -219,15 +315,28 @@ export default function WomenPage() {
                       </div>
                       <span className="text-xs text-gray-600 ml-1">({product.rating})</span>
                     </div>
-                    <div className="flex items-center justify-between">
+                    <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center space-x-2">
                         <span className="font-bold text-lg">₹{product.price}</span>
                         {product.original_price && (
                           <span className="text-sm text-gray-500 line-through">₹{product.original_price}</span>
                         )}
                       </div>
-                      <Button size="sm" asChild>
-                        <Link href={`/product/${product.id}`}>View</Link>
+                    </div>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        onClick={(e) => {
+                          e.preventDefault()
+                          handleAddToCart(product.id)
+                        }}
+                      >
+                        <ShoppingCart className="h-4 w-4 mr-1" />
+                        Add to Cart
+                      </Button>
+                      <Button size="sm" variant="outline" asChild>
+                        <Link href={`/product/${product.id}`}>Buy Now</Link>
                       </Button>
                     </div>
                   </CardContent>

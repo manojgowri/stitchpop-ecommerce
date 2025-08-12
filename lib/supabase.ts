@@ -33,7 +33,11 @@ export const signInWithGoogle = async () => {
   const { data, error } = await client.auth.signInWithOAuth({
     provider: "google",
     options: {
-      redirectTo: `${window.location.origin}/auth/callback`,
+      redirectTo: `https://www.stitchpop.in/auth/callback`,
+      queryParams: {
+        access_type: "offline",
+        prompt: "consent",
+      },
     },
   })
   return { data, error }
@@ -52,6 +56,31 @@ export const getCurrentUser = async () => {
     error,
   } = await client.auth.getUser()
   return { user, error }
+}
+
+export const signUpWithEmail = async (email: string, password: string, name: string) => {
+  const client = createClient()
+
+  const { data, error } = await client.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: `https://www.stitchpop.in/auth/callback`,
+      data: {
+        name,
+      },
+    },
+  })
+  return { data, error }
+}
+
+export const resetPassword = async (email: string) => {
+  const client = createClient()
+
+  const { data, error } = await client.auth.resetPasswordForEmail(email, {
+    redirectTo: `https://www.stitchpop.in/auth/reset-password`,
+  })
+  return { data, error }
 }
 
 // Database types
