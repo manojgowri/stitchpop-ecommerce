@@ -151,8 +151,8 @@ export default function HomePage() {
                       <h1 className="text-4xl lg:text-6xl font-bold mb-4">{banner.title}</h1>
                       {banner.subtitle && <p className="text-lg lg:text-xl mb-8 text-white/90">{banner.subtitle}</p>}
                       {banner.redirect_url && (
-                        <Button size="lg" asChild className="bg-white text-black hover:bg-gray-100">
-                          <Link href={banner.redirect_url}>
+                        <Button size="lg" className="bg-white text-black hover:bg-gray-100">
+                          <Link href={banner.redirect_url} className="inline-flex items-center">
                             Explore Now
                             <ArrowRight className="ml-2 h-4 w-4" />
                           </Link>
@@ -202,8 +202,8 @@ export default function HomePage() {
                 Welcome to <span className="text-gray-800">Stitch POP</span>
               </h1>
               <p className="text-lg lg:text-xl mb-8">Premium fashion and lifestyle brand</p>
-              <Button size="lg" asChild>
-                <Link href="/categories">
+              <Button size="lg" className="bg-white text-black hover:bg-gray-100">
+                <Link href="/categories" className="inline-flex items-center">
                   Shop Now
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -332,8 +332,8 @@ export default function HomePage() {
             ))}
           </div>
           <div className="text-center mt-12">
-            <Button size="lg" asChild>
-              <Link href="/categories">
+            <Button size="lg" className="bg-white text-black hover:bg-gray-100">
+              <Link href="/categories" className="inline-flex items-center">
                 View All Products
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
