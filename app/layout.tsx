@@ -83,14 +83,14 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <>
+          <div>
             <div className="relative min-h-screen flex flex-col">
               <Header />
               <main className="flex-1">{children}</main>
               <Footer />
             </div>
             <Toaster />
-          </>
+          </div>
         </ThemeProvider>
       </body>
     </html>
