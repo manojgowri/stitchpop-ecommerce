@@ -148,14 +148,8 @@ export function Header() {
             <NavigationMenu className="hidden md:flex">
               <NavigationMenuList>
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger asChild>
-                    <Link
-                      href="/men"
-                      className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
-                    >
-                      Men
-                    </Link>
-                  </NavigationMenuTrigger>
+                  {/* FIX: Removed asChild and Link wrapper */}
+                  <NavigationMenuTrigger>Men</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
                       {menCategories.map((category) => (
@@ -173,14 +167,8 @@ export function Header() {
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger asChild>
-                    <Link
-                      href="/women"
-                      className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
-                    >
-                      Women
-                    </Link>
-                  </NavigationMenuTrigger>
+                  {/* FIX: Removed asChild and Link wrapper */}
+                  <NavigationMenuTrigger>Women</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
                       {womenCategories.map((category) => (
@@ -198,14 +186,8 @@ export function Header() {
                 </NavigationMenuItem>
 
                 <NavigationMenuItem>
-                  <NavigationMenuTrigger asChild>
-                    <Link
-                      href="/kids"
-                      className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
-                    >
-                      Kids
-                    </Link>
-                  </NavigationMenuTrigger>
+                  {/* FIX: Removed asChild and Link wrapper */}
+                  <NavigationMenuTrigger>Kids</NavigationMenuTrigger>
                   <NavigationMenuContent>
                     <div className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
                       {kidsCategories.map((category) => (
