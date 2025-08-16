@@ -22,7 +22,8 @@ export async function GET(request: NextRequest) {
           id,
           name,
           price,
-          sale_price,
+          original_price,
+          is_on_sale,
           images
         )
       `)
@@ -33,14 +34,15 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Failed to fetch cart items" }, { status: 500 })
     }
 
-    // Transform the data to match the expected format
     const transformedItems =
       cartItems?.map((item) => ({
         id: item.id,
         product_id: item.product_id,
         product_name: item.products?.name || "Unknown Product",
         product_image: item.products?.images?.[0] || "/placeholder.svg",
-        price: item.products?.sale_price || item.products?.price || 0,
+        price: item.products?.is_on_sale ? item.products?.original_price : item.products?.price || 0,
+        original_price: item.products?.original_price || item.products?.price || 0,
+        is_on_sale: item.products?.is_on_sale || false,
         size: item.size,
         color: item.color,
         quantity: item.quantity,
@@ -62,7 +64,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID and Product ID are required" }, { status: 400 })
     }
 
-    // Check if item already exists in cart
     const { data: existingItem, error: checkError } = await supabase
       .from("cart_items")
       .select("id, quantity")
@@ -78,7 +79,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (existingItem) {
-      // Update existing item quantity
       const { error: updateError } = await supabase
         .from("cart_items")
         .update({ quantity: existingItem.quantity + quantity })
@@ -89,7 +89,6 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Failed to update cart" }, { status: 500 })
       }
     } else {
-      // Add new item to cart
       const { error: insertError } = await supabase.from("cart_items").insert([
         {
           user_id,

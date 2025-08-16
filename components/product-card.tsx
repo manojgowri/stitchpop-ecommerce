@@ -274,9 +274,9 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
               size="sm"
               variant="outline"
               className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
-              asChild
+              onClick={handleAddToCart}
             >
-              <Link href={`/product/${product.id}`}>View</Link>
+              Add to Cart
             </Button>
             <Button size="sm" className="flex-1 bg-gray-800 text-white hover:bg-gray-700" onClick={handleBuyNow}>
               Buy Now

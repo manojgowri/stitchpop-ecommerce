@@ -68,6 +68,11 @@ export default function ProductPage() {
 
   const fetchProduct = async (productId: string) => {
     try {
+      const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+      if (!uuidRegex.test(productId)) {
+        throw new Error("Invalid product ID format")
+      }
+
       const { data, error } = await supabase
         .from("products")
         .select(`
@@ -97,7 +102,9 @@ export default function ProductPage() {
         description: "Product not found",
         variant: "destructive",
       })
-      router.push("/")
+      setTimeout(() => {
+        router.push("/")
+      }, 2000)
     } finally {
       setLoading(false)
     }

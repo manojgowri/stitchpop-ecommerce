@@ -5,9 +5,8 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Star } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import ProductCard from "@/components/product-card"
 
 interface Product {
   id: string
@@ -181,7 +180,8 @@ export default function MenPage() {
                     <Image
                       src={
                         category.image_url ||
-                        "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(category.name)
+                        "/placeholder.svg?height=200&width=300&text=" + encodeURIComponent(category.name) ||
+                        "/placeholder.svg"
                       }
                       alt={category.name}
                       width={300}
@@ -226,49 +226,18 @@ export default function MenPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredProducts.map((product) => (
-                <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="relative overflow-hidden">
-                    <Image
-                      src={product.image_url || "/placeholder.svg"}
-                      alt={product.name}
-                      width={250}
-                      height={300}
-                      className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {product.originalPrice && (
-                      <Badge className="absolute top-2 left-2 bg-red-500">
-                        {Math.round(((product.originalPrice - product.price) / product.originalPrice) * 100)}% OFF
-                      </Badge>
-                    )}
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-sm mb-2 line-clamp-2">{product.name}</h3>
-                    <div className="flex items-center mb-2">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-3 w-3 ${
-                              i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-600 ml-1">({product.rating})</span>
-                    </div>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-lg">₹{product.price}</span>
-                        {product.originalPrice && (
-                          <span className="text-sm text-gray-500 line-through">₹{product.originalPrice}</span>
-                        )}
-                      </div>
-                      <Button size="sm" asChild>
-                        <Link href={`/product/${product.id}`}>View</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ProductCard
+                  key={product.id}
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    original_price: product.originalPrice,
+                    images: [product.image_url],
+                    rating: product.rating,
+                    is_on_sale: !!(product.originalPrice && product.originalPrice > product.price),
+                  }}
+                />
               ))}
             </div>
           )}

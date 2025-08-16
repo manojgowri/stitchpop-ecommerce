@@ -2,12 +2,9 @@
 
 import { useState, useEffect } from "react"
 import Link from "next/link"
-import Image from "next/image"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Star, Heart, ShoppingCart, Eye } from "lucide-react"
 import { supabase } from "@/lib/supabase"
+import ProductCard from "@/components/product-card"
 
 interface Product {
   id: string
@@ -76,67 +73,18 @@ export default function StitchDropPage() {
           {products.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {products.map((product) => (
-                <div key={product.id} className="group relative">
-                  <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">
-                    <div className="relative aspect-square">
-                      <Image
-                        src={product.images?.[0] || "/placeholder.svg?height=300&width=300&text=Product"}
-                        alt={product.name}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <Badge className="absolute top-2 left-2 bg-red-500">Sale</Badge>
-
-                      {/* Product Actions Overlay */}
-                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-center justify-center">
-                        <div className="flex space-x-2">
-                          <Button size="sm" variant="secondary" asChild>
-                            <Link href={`/product/${product.id}`}>
-                              <Eye className="h-4 w-4" />
-                            </Link>
-                          </Button>
-                          <Button size="sm" variant="secondary">
-                            <Heart className="h-4 w-4" />
-                          </Button>
-                          <Button size="sm" variant="secondary">
-                            <ShoppingCart className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
-                    <CardContent className="p-4 space-y-2">
-                      <h3 className="font-semibold group-hover:text-gray-800 transition-colors">{product.name}</h3>
-                      <div className="flex items-center gap-1">
-                        <div className="flex items-center">
-                          {[...Array(5)].map((_, i) => (
-                            <Star
-                              key={i}
-                              className={`h-3 w-3 ${
-                                i < Math.floor(product.rating || 0)
-                                  ? "fill-yellow-400 text-yellow-400"
-                                  : "text-gray-300"
-                              }`}
-                            />
-                          ))}
-                        </div>
-                        <span className="text-xs text-gray-600">({product.rating || 0})</span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-bold text-lg text-red-600">₹{product.price?.toLocaleString()}</span>
-                        {product.original_price && product.original_price > product.price && (
-                          <span className="text-sm text-gray-600 line-through">
-                            ₹{product.original_price.toLocaleString()}
-                          </span>
-                        )}
-                        {product.original_price && product.original_price > product.price && (
-                          <Badge variant="destructive" className="text-xs">
-                            {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
-                          </Badge>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
+                <ProductCard
+                  key={product.id}
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    original_price: product.original_price,
+                    images: product.images,
+                    rating: product.rating,
+                    is_on_sale: product.is_on_sale,
+                  }}
+                />
               ))}
             </div>
           ) : (

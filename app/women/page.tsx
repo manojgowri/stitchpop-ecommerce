@@ -5,10 +5,9 @@ import Link from "next/link"
 import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
-import { Star, Heart, ShoppingCart } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
+import ProductCard from "@/components/product-card"
 
 interface Product {
   id: string
@@ -274,73 +273,18 @@ export default function WomenPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {featuredProducts.map((product) => (
-                <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
-                  <div className="relative overflow-hidden">
-                    <Image
-                      src={product.images[0] || "/placeholder.svg"}
-                      alt={product.name}
-                      width={250}
-                      height={300}
-                      className="w-full h-64 object-cover group-hover:scale-105 transition-transform duration-300"
-                    />
-                    {product.original_price && (
-                      <Badge className="absolute top-2 left-2 bg-red-500">
-                        {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
-                      </Badge>
-                    )}
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="absolute top-2 right-2 bg-white/80 hover:bg-white"
-                      onClick={(e) => {
-                        e.preventDefault()
-                        handleAddToWishlist(product.id)
-                      }}
-                    >
-                      <Heart className="h-4 w-4" />
-                    </Button>
-                  </div>
-                  <CardContent className="p-4">
-                    <h3 className="font-semibold text-sm mb-2 line-clamp-2">{product.name}</h3>
-                    <div className="flex items-center mb-2">
-                      <div className="flex items-center">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`h-3 w-3 ${
-                              i < Math.floor(product.rating) ? "text-yellow-400 fill-current" : "text-gray-300"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <span className="text-xs text-gray-600 ml-1">({product.rating})</span>
-                    </div>
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="flex items-center space-x-2">
-                        <span className="font-bold text-lg">₹{product.price}</span>
-                        {product.original_price && (
-                          <span className="text-sm text-gray-500 line-through">₹{product.original_price}</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="flex-1"
-                        onClick={(e) => {
-                          e.preventDefault()
-                          handleAddToCart(product.id)
-                        }}
-                      >
-                        <ShoppingCart className="h-4 w-4 mr-1" />
-                        Add to Cart
-                      </Button>
-                      <Button size="sm" variant="outline" asChild>
-                        <Link href={`/product/${product.id}`}>Buy Now</Link>
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
+                <ProductCard
+                  key={product.id}
+                  product={{
+                    id: product.id,
+                    name: product.name,
+                    price: product.price,
+                    original_price: product.original_price,
+                    images: product.images,
+                    rating: product.rating,
+                    is_on_sale: !!(product.original_price && product.original_price > product.price),
+                  }}
+                />
               ))}
             </div>
           )}

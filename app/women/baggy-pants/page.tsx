@@ -26,7 +26,17 @@ interface Product {
   }
 }
 
-export default function MenTShirtsPage() {
+// TEMPLATE PAGE FOR NEW PRODUCT CATEGORIES
+// TO ADD A NEW CATEGORY:
+// 1. Copy this file to the appropriate folder (e.g., men/new-category/page.tsx or women/new-category/page.tsx)
+// 2. Update the category name in the database query (line 45)
+// 3. Update the gender in the database query (line 46)
+// 4. Update the page title and description (lines 85-88)
+// 5. Update the breadcrumb navigation (lines 95-102)
+// 6. Update the fallback data category names (lines 60-61, 78-79)
+// 7. Update the "No products" section text (lines 140-143)
+
+export default function WomenBaggyPantsPage() {
   const [products, setProducts] = useState<Product[]>([])
   const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [loading, setLoading] = useState(true)
@@ -48,48 +58,53 @@ export default function MenTShirtsPage() {
           *,
           categories!inner(name, gender)
         `)
-        .eq("categories.name", "T-Shirts")
-        .eq("categories.gender", "men")
+        // CHANGE THIS: Update category name for your new product type
+        .eq("categories.name", "Baggy Pants")
+        // CHANGE THIS: Update gender (men/women/kids)
+        .eq("categories.gender", "women")
         .eq("is_active", true)
 
       if (error) throw error
 
       setProducts(data || [])
     } catch (error) {
-      console.error("Error fetching t-shirts:", error)
+      console.error("Error fetching baggy pants:", error)
+      // FALLBACK DATA - Update this with sample products for your category
       setProducts([
         {
           id: "1",
-          name: "Classic Cotton T-Shirt",
-          description: "Comfortable cotton t-shirt perfect for everyday wear",
-          price: 399,
-          original_price: 899,
-          images: ["/placeholder.svg?height=300&width=250&text=T-shirt+Front"],
-          rating: 4.5,
-          sizes: ["S", "M", "L", "XL"],
-          colors: ["Black", "White", "Gray"],
-          stock: 50,
+          name: "Relaxed Fit Baggy Pants",
+          description: "Comfortable baggy pants perfect for casual wear",
+          price: 1299,
+          original_price: 1899,
+          images: ["/placeholder.svg?height=400&width=300&text=Baggy+Pants"],
+          rating: 4.4,
+          sizes: ["XS", "S", "M", "L", "XL"],
+          colors: ["Black", "Beige", "Olive"],
+          stock: 25,
           is_on_sale: true,
+          // UPDATE THESE: Category name and gender
           categories: {
-            name: "T-Shirts",
-            gender: "men",
+            name: "Baggy Pants",
+            gender: "women",
           },
         },
         {
           id: "2",
-          name: "Graphic Print T-Shirt",
-          description: "Trendy graphic print t-shirt with modern design",
-          price: 499,
-          original_price: 999,
-          images: ["/placeholder.svg?height=300&width=250&text=Graphic+Front"],
-          rating: 4.3,
-          sizes: ["S", "M", "L", "XL"],
-          colors: ["Navy", "Black", "White"],
-          stock: 30,
+          name: "Wide Leg Cargo Pants",
+          description: "Trendy wide leg cargo pants with multiple pockets",
+          price: 1599,
+          original_price: 2299,
+          images: ["/placeholder.svg?height=400&width=300&text=Cargo+Pants"],
+          rating: 4.6,
+          sizes: ["XS", "S", "M", "L", "XL"],
+          colors: ["Khaki", "Black", "Navy"],
+          stock: 18,
           is_on_sale: true,
+          // UPDATE THESE: Category name and gender
           categories: {
-            name: "T-Shirts",
-            gender: "men",
+            name: "Baggy Pants",
+            gender: "women",
           },
         },
       ])
@@ -127,7 +142,8 @@ export default function MenTShirtsPage() {
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-800 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading t-shirts...</p>
+          {/* UPDATE THIS: Loading text for your category */}
+          <p className="mt-4 text-gray-600">Loading baggy pants...</p>
         </div>
       </div>
     )
@@ -139,9 +155,10 @@ export default function MenTShirtsPage() {
       <section className="relative bg-gray-50 py-16">
         <div className="container mx-auto px-4">
           <div className="text-center">
-            <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-4">Men's T-Shirts</h1>
+            {/* UPDATE THESE: Page title and description */}
+            <h1 className="text-4xl lg:text-5xl font-bold text-gray-800 mb-4">Women's Baggy Pants</h1>
             <p className="text-lg text-gray-600 max-w-2xl mx-auto">
-              Discover our collection of premium t-shirts for men
+              Comfortable and stylish baggy pants for the modern woman
             </p>
             <div className="mt-6">
               <nav className="text-sm text-gray-600">
@@ -149,11 +166,13 @@ export default function MenTShirtsPage() {
                   Home
                 </Link>
                 <span className="mx-2">/</span>
-                <Link href="/men" className="hover:text-gray-800">
-                  Men
+                {/* UPDATE THIS: Parent category link */}
+                <Link href="/women" className="hover:text-gray-800">
+                  Women
                 </Link>
                 <span className="mx-2">/</span>
-                <span className="text-gray-800">T-Shirts</span>
+                {/* UPDATE THIS: Current category name */}
+                <span className="text-gray-800">Baggy Pants</span>
               </nav>
             </div>
           </div>
@@ -185,6 +204,7 @@ export default function MenTShirtsPage() {
             </div>
           </div>
 
+          {/* Products Grid - Uses consistent ProductCard component */}
           {filteredProducts.length > 0 ? (
             <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
               {filteredProducts.map((product) => (
@@ -193,10 +213,12 @@ export default function MenTShirtsPage() {
             </div>
           ) : (
             <div className="text-center py-20">
-              <h2 className="text-2xl font-bold text-gray-800 mb-4">No T-Shirts Available</h2>
+              {/* UPDATE THESE: No products message */}
+              <h2 className="text-2xl font-bold text-gray-800 mb-4">No Baggy Pants Available</h2>
               <p className="text-gray-600 mb-8">Check back soon for new arrivals!</p>
               <Button asChild className="bg-gray-800 text-white hover:bg-gray-700">
-                <Link href="/men">Browse All Men's Items</Link>
+                {/* UPDATE THIS: Parent category link */}
+                <Link href="/women">Browse All Women's Items</Link>
               </Button>
             </div>
           )}
