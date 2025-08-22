@@ -24,9 +24,10 @@ import {
   NavigationMenuList,
   NavigationMenuTrigger,
 } from "@/components/ui/navigation-menu"
-import { Search, ShoppingCart, User, Menu, X } from "lucide-react"
+import { Search, ShoppingCart, User, Menu, X, Heart } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { CartSlideOver } from "@/components/cart-slide-over"
+import { useCart } from "@/lib/cart-context"
 
 interface Category {
   id: string
@@ -38,7 +39,7 @@ export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [isCartOpen, setIsCartOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
-  const [cartCount, setCartCount] = useState(0)
+  const { cartCount } = useCart()
   const [searchQuery, setSearchQuery] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
   const router = useRouter()
@@ -50,10 +51,6 @@ export function Header() {
         data: { session },
       } = await supabase.auth.getSession()
       setUser(session?.user || null)
-
-      if (session?.user) {
-        loadCartCount(session.user.id)
-      }
     }
 
     getSession()
@@ -63,11 +60,6 @@ export function Header() {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user || null)
-      if (session?.user) {
-        loadCartCount(session.user.id)
-      } else {
-        setCartCount(0)
-      }
     })
 
     return () => subscription.unsubscribe()
@@ -91,19 +83,6 @@ export function Header() {
 
     loadCategories()
   }, [])
-
-  const loadCartCount = async (userId: string) => {
-    try {
-      const { data, error } = await supabase.from("cart").select("quantity").eq("user_id", userId)
-
-      if (error) throw error
-
-      const totalCount = data?.reduce((sum, item) => sum + item.quantity, 0) || 0
-      setCartCount(totalCount)
-    } catch (error) {
-      console.error("Error loading cart count:", error)
-    }
-  }
 
   const handleSignOut = async () => {
     await supabase.auth.signOut()
@@ -252,6 +231,15 @@ export function Header() {
                   </Badge>
                 )}
               </Button>
+
+              {/* Wishlist Icon */}
+              {user && (
+                <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900" asChild>
+                  <Link href="/wishlist">
+                    <Heart className="h-5 w-5" />
+                  </Link>
+                </Button>
+              )}
 
               {/* User Menu */}
               {user ? (

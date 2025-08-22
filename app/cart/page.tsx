@@ -6,8 +6,9 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { Input } from "@/components/ui/input"
 import { Separator } from "@/components/ui/separator"
-import { Minus, Plus, Trash2, ShoppingBag } from "lucide-react"
+import { Minus, Plus, Trash2, ShoppingBag, Tag } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
@@ -22,10 +23,23 @@ interface CartItem {
   quantity: number
 }
 
+interface Coupon {
+  id: string
+  code: string
+  description: string
+  discount_type: "percentage" | "fixed"
+  discount_value: number
+  minimum_order_amount: number
+  maximum_discount_amount?: number
+}
+
 export default function CartPage() {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [loading, setLoading] = useState(true)
   const [user, setUser] = useState<any>(null)
+  const [couponCode, setCouponCode] = useState("")
+  const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -131,8 +145,90 @@ export default function CartPage() {
     }
   }
 
-  const calculateTotal = () => {
+  const applyCoupon = async () => {
+    if (!couponCode.trim()) return
+
+    setCouponLoading(true)
+    try {
+      const response = await fetch(`/api/coupons?code=${couponCode.toUpperCase()}`)
+
+      if (response.ok) {
+        const coupon = await response.json()
+        const subtotal = calculateSubtotal()
+
+        // Check minimum order amount
+        if (coupon.minimum_order_amount > subtotal) {
+          toast({
+            title: "Invalid Coupon",
+            description: `Minimum order amount of ₹${coupon.minimum_order_amount} required`,
+            variant: "destructive",
+          })
+          return
+        }
+
+        setAppliedCoupon(coupon)
+        toast({
+          title: "Coupon Applied",
+          description: `${coupon.description}`,
+        })
+      } else {
+        const error = await response.json()
+        toast({
+          title: "Invalid Coupon",
+          description: error.error || "Coupon code is invalid",
+          variant: "destructive",
+        })
+      }
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to apply coupon",
+        variant: "destructive",
+      })
+    } finally {
+      setCouponLoading(false)
+    }
+  }
+
+  const removeCoupon = () => {
+    setAppliedCoupon(null)
+    setCouponCode("")
+    toast({
+      title: "Coupon Removed",
+      description: "Coupon has been removed from your order",
+    })
+  }
+
+  const calculateSubtotal = () => {
     return cartItems.reduce((total, item) => total + item.price * item.quantity, 0)
+  }
+
+  const calculateDiscount = () => {
+    if (!appliedCoupon) return 0
+
+    const subtotal = calculateSubtotal()
+    let discount = 0
+
+    if (appliedCoupon.discount_type === "percentage") {
+      discount = (subtotal * appliedCoupon.discount_value) / 100
+    } else {
+      discount = appliedCoupon.discount_value
+    }
+
+    // Apply maximum discount limit if specified
+    if (appliedCoupon.maximum_discount_amount && discount > appliedCoupon.maximum_discount_amount) {
+      discount = appliedCoupon.maximum_discount_amount
+    }
+
+    return Math.min(discount, subtotal) // Don't let discount exceed subtotal
+  }
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal()
+    const discount = calculateDiscount()
+    const shipping = subtotal > 999 ? 0 : 99
+    const tax = Math.round((subtotal - discount) * 0.18)
+    return subtotal - discount + shipping + tax
   }
 
   if (loading) {
@@ -223,25 +319,65 @@ export default function CartPage() {
             <Card className="sticky top-4">
               <CardContent className="p-6">
                 <h2 className="text-xl font-bold mb-4">Order Summary</h2>
+
+                <div className="mb-4">
+                  <div className="flex space-x-2">
+                    <Input
+                      placeholder="Enter coupon code"
+                      value={couponCode}
+                      onChange={(e) => setCouponCode(e.target.value.toUpperCase())}
+                      disabled={!!appliedCoupon}
+                    />
+                    <Button
+                      variant="outline"
+                      onClick={applyCoupon}
+                      disabled={couponLoading || !!appliedCoupon || !couponCode.trim()}
+                    >
+                      <Tag className="h-4 w-4 mr-1" />
+                      Apply
+                    </Button>
+                  </div>
+
+                  {appliedCoupon && (
+                    <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <p className="text-sm font-medium text-green-800">Coupon Applied: {appliedCoupon.code}</p>
+                          <p className="text-xs text-green-600">{appliedCoupon.description}</p>
+                        </div>
+                        <Button size="sm" variant="ghost" onClick={removeCoupon}>
+                          ×
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Subtotal</span>
-                    <span>₹{calculateTotal()}</span>
+                    <span>₹{calculateSubtotal()}</span>
                   </div>
+
+                  {appliedCoupon && calculateDiscount() > 0 && (
+                    <div className="flex justify-between text-green-600">
+                      <span>Discount ({appliedCoupon.code})</span>
+                      <span>-₹{calculateDiscount()}</span>
+                    </div>
+                  )}
+
                   <div className="flex justify-between">
                     <span>Shipping</span>
-                    <span>{calculateTotal() > 999 ? "Free" : "₹99"}</span>
+                    <span>{calculateSubtotal() > 999 ? "Free" : "₹99"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Tax</span>
-                    <span>₹{Math.round(calculateTotal() * 0.18)}</span>
+                    <span>₹{Math.round((calculateSubtotal() - calculateDiscount()) * 0.18)}</span>
                   </div>
                   <Separator />
                   <div className="flex justify-between font-bold text-lg">
                     <span>Total</span>
-                    <span>
-                      ₹{calculateTotal() + (calculateTotal() > 999 ? 0 : 99) + Math.round(calculateTotal() * 0.18)}
-                    </span>
+                    <span>₹{calculateTotal()}</span>
                   </div>
                 </div>
                 <Button className="w-full mt-6" size="lg">

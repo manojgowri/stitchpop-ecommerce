@@ -5,7 +5,7 @@ import type React from "react"
 import { useState, useEffect } from "react"
 import { useRouter } from "next/navigation"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
@@ -26,6 +26,7 @@ import {
 import { Plus, Edit, Trash2, AlertTriangle, Package, ShoppingCart, TrendingUp, Upload } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
+import Link from "next/link"
 
 interface Product {
   id: string
@@ -43,6 +44,10 @@ interface Product {
   images: string[]
   sizes: string[]
   colors: string[]
+  fabric_composition?: string
+  care_instructions?: string
+  size_chart?: string
+  manufacturer?: string
   created_at: string
   categories?: {
     name: string
@@ -97,7 +102,6 @@ export default function AdminDashboard() {
     lowStockCount: 0,
   })
 
-  // Form states
   const [newProduct, setNewProduct] = useState({
     name: "",
     description: "",
@@ -110,6 +114,10 @@ export default function AdminDashboard() {
     colors: "",
     stock: "",
     images: "",
+    fabric_composition: "",
+    care_instructions: "",
+    size_chart: "",
+    manufacturer: "",
     is_on_sale: false,
     is_featured: false,
   })
@@ -127,12 +135,55 @@ export default function AdminDashboard() {
     image_url: "",
   })
 
+  const [fabricTemplates, setFabricTemplates] = useState<any[]>([])
+  const [careTemplates, setCareTemplates] = useState<any[]>([])
+  const [sizeChartTemplates, setSizeChartTemplates] = useState<any[]>([])
+  const [activeTab, setActiveTab] = useState("active")
+
   const router = useRouter()
   const { toast } = useToast()
 
   useEffect(() => {
-    checkAdminAccess()
-  }, [])
+    const checkAuth = async () => {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      if (!session?.user?.user_metadata?.is_admin) {
+        router.push("/")
+        return
+      }
+
+      setUser(session.user)
+      await Promise.all([
+        fetchProducts(),
+        fetchThemes(),
+        fetchCategories(),
+        fetchOrders(),
+        fetchStats(),
+        fetchTemplates(),
+      ])
+      setLoading(false)
+    }
+
+    checkAuth()
+  }, [router])
+
+  const fetchTemplates = async () => {
+    try {
+      const [fabricRes, careRes, sizeRes] = await Promise.all([
+        supabase.from("fabric_templates").select("*").order("name"),
+        supabase.from("care_templates").select("*").order("name"),
+        supabase.from("size_chart_templates").select("*").order("manufacturer, category"),
+      ])
+
+      if (fabricRes.data) setFabricTemplates(fabricRes.data)
+      if (careRes.data) setCareTemplates(careRes.data)
+      if (sizeRes.data) setSizeChartTemplates(sizeRes.data)
+    } catch (error) {
+      console.error("Error fetching templates:", error)
+    }
+  }
 
   const checkAdminAccess = async () => {
     try {
@@ -337,6 +388,10 @@ export default function AdminDashboard() {
         is_active: true,
         is_featured: newProduct.is_featured,
         is_on_sale: newProduct.is_on_sale, // Sale toggle controls whether product appears on sale page
+        fabric_composition: newProduct.fabric_composition,
+        care_instructions: newProduct.care_instructions,
+        size_chart: newProduct.size_chart,
+        manufacturer: newProduct.manufacturer,
       }
 
       const { error } = await supabase.from("products").insert([productData])
@@ -360,6 +415,10 @@ export default function AdminDashboard() {
         colors: "",
         stock: "",
         images: "",
+        fabric_composition: "",
+        care_instructions: "",
+        size_chart: "",
+        manufacturer: "",
         is_on_sale: false,
         is_featured: false,
       })
@@ -659,10 +718,12 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="themes">Themes</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="coupons">Coupons</TabsTrigger>
+            <TabsTrigger value="banners">Banners</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
             <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
@@ -775,36 +836,101 @@ export default function AdminDashboard() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor="fabric_composition">Fabric Composition</Label>
+                      <div className="flex space-x-2">
+                        <Select
+                          onValueChange={(value) => {
+                            const template = fabricTemplates.find((t) => t.id === value)
+                            if (template) {
+                              setNewProduct({ ...newProduct, fabric_composition: template.composition })
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-48">
+                            <SelectValue placeholder="Use template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {fabricTemplates.map((template) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Textarea
+                          id="fabric_composition"
+                          value={newProduct.fabric_composition}
+                          onChange={(e) => setNewProduct({ ...newProduct, fabric_composition: e.target.value })}
+                          placeholder="e.g., 100% Cotton - Soft, breathable, and comfortable"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="care_instructions">Care Instructions</Label>
+                      <div className="flex space-x-2">
+                        <Select
+                          onValueChange={(value) => {
+                            const template = careTemplates.find((t) => t.id === value)
+                            if (template) {
+                              setNewProduct({ ...newProduct, care_instructions: template.instructions })
+                            }
+                          }}
+                        >
+                          <SelectTrigger className="w-48">
+                            <SelectValue placeholder="Use template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {careTemplates.map((template) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <Textarea
+                          id="care_instructions"
+                          value={newProduct.care_instructions}
+                          onChange={(e) => setNewProduct({ ...newProduct, care_instructions: e.target.value })}
+                          placeholder="e.g., Machine wash cold, tumble dry low"
+                          className="flex-1"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
                       <div>
-                        <Label htmlFor="price">Price (₹)</Label>
+                        <Label htmlFor="manufacturer">Manufacturer</Label>
                         <Input
-                          id="price"
-                          type="number"
-                          value={newProduct.price}
-                          onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
-                          required
+                          id="manufacturer"
+                          value={newProduct.manufacturer}
+                          onChange={(e) => setNewProduct({ ...newProduct, manufacturer: e.target.value })}
+                          placeholder="e.g., Standard, Premium, Custom"
                         />
                       </div>
                       <div>
-                        <Label htmlFor="originalPrice">Original Price (₹)</Label>
-                        <Input
-                          id="originalPrice"
-                          type="number"
-                          value={newProduct.original_price}
-                          onChange={(e) => setNewProduct({ ...newProduct, original_price: e.target.value })}
-                          placeholder="Leave empty if no discount"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="stock">Stock</Label>
-                        <Input
-                          id="stock"
-                          type="number"
-                          value={newProduct.stock}
-                          onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
-                          required
-                        />
+                        <Label htmlFor="size_chart">Size Chart</Label>
+                        <Select
+                          onValueChange={(value) => {
+                            const template = sizeChartTemplates.find((t) => t.id === value)
+                            if (template) {
+                              setNewProduct({ ...newProduct, size_chart: JSON.stringify(template.chart_data) })
+                            }
+                          }}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select size chart template" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {sizeChartTemplates.map((template) => (
+                              <SelectItem key={template.id} value={template.id}>
+                                {template.manufacturer} - {template.category}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
                     </div>
 
@@ -994,7 +1120,6 @@ export default function AdminDashboard() {
             </Card>
           </TabsContent>
 
-          {/* Categories Tab */}
           <TabsContent value="categories" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Categories</h2>
@@ -1055,48 +1180,98 @@ export default function AdminDashboard() {
               </Dialog>
             </div>
 
-            <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Gender</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {categories.map((category) => (
-                      <TableRow key={category.id}>
-                        <TableCell className="font-medium">{category.name}</TableCell>
-                        <TableCell className="capitalize">{category.gender}</TableCell>
-                        <TableCell>{category.description || "No description"}</TableCell>
-                        <TableCell>
-                          <Badge variant={category.is_active ? "default" : "secondary"}>
-                            {category.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => setEditingCategory(category)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDeleteCategory(category.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="active">Active Categories</TabsTrigger>
+                <TabsTrigger value="inactive">Inactive Categories</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="active">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Gender</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {categories
+                          .filter((cat) => cat.is_active)
+                          .map((category) => (
+                            <TableRow key={category.id}>
+                              <TableCell className="font-medium">{category.name}</TableCell>
+                              <TableCell className="capitalize">{category.gender}</TableCell>
+                              <TableCell>{category.description || "No description"}</TableCell>
+                              <TableCell>
+                                <Badge variant="default">Active</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex space-x-2">
+                                  <Button variant="outline" size="sm" onClick={() => setEditingCategory(category)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleDeleteCategory(category.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="inactive">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Gender</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {categories
+                          .filter((cat) => !cat.is_active)
+                          .map((category) => (
+                            <TableRow key={category.id}>
+                              <TableCell className="font-medium">{category.name}</TableCell>
+                              <TableCell className="capitalize">{category.gender}</TableCell>
+                              <TableCell>{category.description || "No description"}</TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">Inactive</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex space-x-2">
+                                  <Button variant="outline" size="sm" onClick={() => setEditingCategory(category)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleDeleteCategory(category.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
           </TabsContent>
 
-          {/* Enhanced Themes Tab */}
           <TabsContent value="themes" className="space-y-6">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-bold">Themes</h2>
@@ -1149,55 +1324,155 @@ export default function AdminDashboard() {
               </Dialog>
             </div>
 
+            <Tabs value={activeTab} onValueChange={setActiveTab}>
+              <TabsList>
+                <TabsTrigger value="active">Active Themes</TabsTrigger>
+                <TabsTrigger value="inactive">Inactive Themes</TabsTrigger>
+              </TabsList>
+
+              <TabsContent value="active">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Image</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {themes
+                          .filter((theme) => theme.is_active)
+                          .map((theme) => (
+                            <TableRow key={theme.id}>
+                              <TableCell className="font-medium">{theme.name}</TableCell>
+                              <TableCell>{theme.description || "No description"}</TableCell>
+                              <TableCell>
+                                {theme.image_url ? (
+                                  <img
+                                    src={theme.image_url || "/placeholder.svg"}
+                                    alt={theme.name}
+                                    className="w-10 h-10 object-cover rounded"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-gray-400" />
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="default">Active</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex space-x-2">
+                                  <Button variant="outline" size="sm" onClick={() => setEditingTheme(theme)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleDeleteTheme(theme.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              <TabsContent value="inactive">
+                <Card>
+                  <CardContent className="p-0">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Name</TableHead>
+                          <TableHead>Description</TableHead>
+                          <TableHead>Image</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {themes
+                          .filter((theme) => !theme.is_active)
+                          .map((theme) => (
+                            <TableRow key={theme.id}>
+                              <TableCell className="font-medium">{theme.name}</TableCell>
+                              <TableCell>{theme.description || "No description"}</TableCell>
+                              <TableCell>
+                                {theme.image_url ? (
+                                  <img
+                                    src={theme.image_url || "/placeholder.svg"}
+                                    alt={theme.name}
+                                    className="w-10 h-10 object-cover rounded"
+                                  />
+                                ) : (
+                                  <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
+                                    <Package className="h-4 w-4 text-gray-400" />
+                                  </div>
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="secondary">Inactive</Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex space-x-2">
+                                  <Button variant="outline" size="sm" onClick={() => setEditingTheme(theme)}>
+                                    <Edit className="h-4 w-4" />
+                                  </Button>
+                                  <Button variant="outline" size="sm" onClick={() => handleDeleteTheme(theme.id)}>
+                                    <Trash2 className="h-4 w-4" />
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </TabsContent>
+
+          <TabsContent value="coupons" className="space-y-6">
+            <div className="flex justify-between items-center">
+              <h2 className="text-2xl font-bold">Coupon Management</h2>
+              <Button onClick={() => router.push("/admin/coupons")}>
+                <Plus className="h-4 w-4 mr-2" />
+                Manage Coupons
+              </Button>
+            </div>
             <Card>
-              <CardContent className="p-0">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Image</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {themes.map((theme) => (
-                      <TableRow key={theme.id}>
-                        <TableCell className="font-medium">{theme.name}</TableCell>
-                        <TableCell>{theme.description || "No description"}</TableCell>
-                        <TableCell>
-                          {theme.image_url ? (
-                            <img
-                              src={theme.image_url || "/placeholder.svg"}
-                              alt={theme.name}
-                              className="w-10 h-10 object-cover rounded"
-                            />
-                          ) : (
-                            <div className="w-10 h-10 bg-gray-200 rounded flex items-center justify-center">
-                              <Package className="h-4 w-4 text-gray-400" />
-                            </div>
-                          )}
-                        </TableCell>
-                        <TableCell>
-                          <Badge variant={theme.is_active ? "default" : "secondary"}>
-                            {theme.is_active ? "Active" : "Inactive"}
-                          </Badge>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex space-x-2">
-                            <Button variant="outline" size="sm" onClick={() => setEditingTheme(theme)}>
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm" onClick={() => handleDeleteTheme(theme.id)}>
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
+              <CardContent className="p-6">
+                <div className="text-center py-8">
+                  <p className="text-gray-600 mb-4">Manage discount coupons for your store</p>
+                  <Button onClick={() => router.push("/admin/coupons")}>Go to Coupon Management</Button>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="banners">
+            <Card>
+              <CardHeader>
+                <CardTitle>Banner Management</CardTitle>
+                <CardDescription>Manage banner images for Home, Men, and Women pages</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground mb-4">
+                    Use the dedicated banner management page for full functionality
+                  </p>
+                  <Button asChild>
+                    <Link href="/admin/banners">Go to Banner Management</Link>
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

@@ -11,6 +11,7 @@ import { Star, Heart } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
+import { useCart } from "@/lib/cart-context"
 
 interface Product {
   id: string
@@ -35,6 +36,7 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
   const [isInWishlist, setIsInWishlist] = useState(false)
   const { toast } = useToast()
   const router = useRouter()
+  const { addToCart } = useCart()
 
   useEffect(() => {
     const getUser = async () => {
@@ -86,32 +88,9 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
     }
 
     try {
-      const { error } = await supabase.from("cart").insert([
-        {
-          user_id: user.id,
-          product_id: product.id,
-          quantity: 1,
-          size: product.sizes?.[0] || null,
-          color: product.colors?.[0] || null,
-        },
-      ])
-
-      if (error) throw error
-
-      toast({
-        title: "Added to cart",
-        description: "Item has been added to your cart",
-      })
-
-      // Trigger cart count update
-      window.dispatchEvent(new CustomEvent("cartUpdated"))
+      await addToCart(product.id, 1, product.sizes?.[0] || "", product.colors?.[0] || "")
     } catch (error) {
       console.error("Error adding to cart:", error)
-      toast({
-        title: "Error",
-        description: "Failed to add item to cart",
-        variant: "destructive",
-      })
     }
   }
 
@@ -181,8 +160,12 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
     }
 
     // Add to cart first, then redirect to checkout
-    await handleAddToCart(e)
-    router.push("/checkout")
+    try {
+      await addToCart(product.id, 1, product.sizes?.[0] || "", product.colors?.[0] || "")
+      router.push("/checkout")
+    } catch (error) {
+      console.error("Error in buy now:", error)
+    }
   }
 
   return (
