@@ -144,29 +144,7 @@ export default function AdminDashboard() {
   const { toast } = useToast()
 
   useEffect(() => {
-    const checkAuth = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      if (!session?.user?.user_metadata?.is_admin) {
-        router.push("/")
-        return
-      }
-
-      setUser(session.user)
-      await Promise.all([
-        fetchProducts(),
-        fetchThemes(),
-        fetchCategories(),
-        fetchOrders(),
-        fetchStats(),
-        fetchTemplates(),
-      ])
-      setLoading(false)
-    }
-
-    checkAuth()
+    checkAdminAccess()
   }, [router])
 
   const fetchTemplates = async () => {
@@ -196,7 +174,24 @@ export default function AdminDashboard() {
         return
       }
 
-      // Check if user is admin in the users table
+      const hasMetadataAdmin = session.user.user_metadata?.is_admin
+
+      if (hasMetadataAdmin) {
+        // User has admin flag in metadata, proceed
+        setUser(session.user)
+        await Promise.all([
+          fetchProducts(),
+          fetchThemes(),
+          fetchCategories(),
+          fetchOrders(),
+          fetchStats(),
+          fetchTemplates(),
+        ])
+        setLoading(false)
+        return
+      }
+
+      // Check if user is admin in the users table as fallback
       const { data: userData, error: userError } = await supabase
         .from("users")
         .select("*")
@@ -214,7 +209,14 @@ export default function AdminDashboard() {
       }
 
       setUser(session.user)
-      await Promise.all([fetchProducts(), fetchThemes(), fetchCategories(), fetchOrders(), fetchStats()])
+      await Promise.all([
+        fetchProducts(),
+        fetchThemes(),
+        fetchCategories(),
+        fetchOrders(),
+        fetchStats(),
+        fetchTemplates(),
+      ])
       setLoading(false)
     } catch (error) {
       console.error("Error checking admin access:", error)
