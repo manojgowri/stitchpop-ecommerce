@@ -120,7 +120,7 @@ export function Header() {
                   className="object-contain"
                 />
               </div>
-              <span className="text-xl font-bold text-gray-800">Stitch POP</span>
+              <span className="text-xl text-gray-800 font-black">Stitchpop. </span>
             </Link>
 
             {/* Desktop Navigation */}

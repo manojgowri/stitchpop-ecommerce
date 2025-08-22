@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
@@ -19,7 +18,6 @@ import Image from "next/image"
 interface Banner {
   id: string
   title: string
-  subtitle?: string
   page_type: "home" | "men" | "women"
   desktop_image_url: string
   mobile_image_url?: string
@@ -39,7 +37,6 @@ export default function BannerManagement() {
 
   const [formData, setFormData] = useState({
     title: "",
-    subtitle: "",
     page_type: "home" as "home" | "men" | "women",
     desktop_image_url: "",
     mobile_image_url: "",
@@ -78,7 +75,6 @@ export default function BannerManagement() {
           .from("banners")
           .update({
             title: formData.title,
-            subtitle: formData.subtitle || null,
             page_type: formData.page_type,
             desktop_image_url: formData.desktop_image_url,
             mobile_image_url: formData.mobile_image_url || null,
@@ -93,7 +89,6 @@ export default function BannerManagement() {
         const { error } = await supabase.from("banners").insert([
           {
             title: formData.title,
-            subtitle: formData.subtitle || null,
             page_type: formData.page_type,
             desktop_image_url: formData.desktop_image_url,
             mobile_image_url: formData.mobile_image_url || null,
@@ -130,7 +125,6 @@ export default function BannerManagement() {
     setEditingBanner(banner)
     setFormData({
       title: banner.title,
-      subtitle: banner.subtitle || "",
       page_type: banner.page_type,
       desktop_image_url: banner.desktop_image_url,
       mobile_image_url: banner.mobile_image_url || "",
@@ -146,7 +140,6 @@ export default function BannerManagement() {
     setIsCreating(false)
     setFormData({
       title: "",
-      subtitle: "",
       page_type: "home",
       desktop_image_url: "",
       mobile_image_url: "",
@@ -209,16 +202,6 @@ export default function BannerManagement() {
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div>
-                <Label htmlFor="subtitle">Subtitle</Label>
-                <Textarea
-                  id="subtitle"
-                  value={formData.subtitle}
-                  onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
-                  rows={2}
-                />
               </div>
 
               <div className="space-y-4">
@@ -377,7 +360,6 @@ export default function BannerManagement() {
                             </Badge>
                             <Badge variant="outline">Order: {banner.display_order}</Badge>
                           </div>
-                          {banner.subtitle && <p className="text-gray-600">{banner.subtitle}</p>}
                           <div className="flex items-center gap-4 text-sm text-gray-500">
                             <span>Desktop: {banner.desktop_image_url}</span>
                             {banner.mobile_image_url && <span>Mobile: {banner.mobile_image_url}</span>}
