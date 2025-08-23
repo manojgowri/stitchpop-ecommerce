@@ -173,7 +173,7 @@ export function Header() {
                         <NavigationMenuLink key={category.id} asChild>
                           <Link
                             href={`/kids/${category.name.toLowerCase().replace(/\s+/g, "-")}`}
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900"
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
                           >
                             <div className="text-sm font-medium leading-none">{category.name}</div>
                           </Link>
@@ -234,7 +234,7 @@ export function Header() {
 
               {/* Wishlist Icon */}
               {user && (
-                <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900" asChild>
+                <Button variant="ghost" size="sm" className="hidden md:flex text-gray-700 hover:text-gray-900" asChild>
                   <Link href="/wishlist">
                     <Heart className="h-5 w-5" />
                   </Link>
@@ -272,18 +272,40 @@ export function Header() {
                   </DropdownMenuContent>
                 </DropdownMenu>
               ) : (
-                <div className="flex items-center space-x-2">
-                  <Link href="/auth/login">
-                    <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900">
-                      Sign In
-                    </Button>
-                  </Link>
-                  <Link href="/auth/register">
-                    <Button size="sm" className="bg-gray-800 text-white hover:bg-gray-700">
-                      Sign Up
-                    </Button>
-                  </Link>
-                </div>
+                <>
+                  {/* Desktop: Show both Sign In and Sign Up buttons */}
+                  <div className="hidden md:flex items-center space-x-2">
+                    <Link href="/auth/login">
+                      <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900">
+                        Sign In
+                      </Button>
+                    </Link>
+                    <Link href="/auth/register">
+                      <Button size="sm" className="bg-gray-800 text-white hover:bg-gray-700">
+                        Sign Up
+                      </Button>
+                    </Link>
+                  </div>
+
+                  {/* Mobile: Show single account icon */}
+                  <div className="md:hidden">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="ghost" size="sm" className="text-gray-700 hover:text-gray-900">
+                          <User className="h-5 w-5" />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end">
+                        <DropdownMenuItem asChild>
+                          <Link href="/auth/login">Sign In</Link>
+                        </DropdownMenuItem>
+                        <DropdownMenuItem asChild>
+                          <Link href="/auth/register">Sign Up</Link>
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                </>
               )}
             </div>
           </div>
