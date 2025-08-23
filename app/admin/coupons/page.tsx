@@ -85,24 +85,37 @@ export default function CouponsPage() {
     e.preventDefault()
 
     try {
+      console.log("[v0] Form data before processing:", formData)
+
+      const processedData = {
+        ...formData,
+        discount_value: Number.parseFloat(formData.discount_value),
+        minimum_order_amount: Number.parseFloat(formData.minimum_order_amount) || 0,
+        maximum_discount_amount: formData.maximum_discount_amount
+          ? Number.parseFloat(formData.maximum_discount_amount)
+          : null,
+        usage_limit: formData.usage_limit ? Number.parseInt(formData.usage_limit) : null,
+      }
+
+      console.log("[v0] Processed data being sent:", processedData)
+
       const url = editingCoupon ? `/api/coupons/${editingCoupon.id}` : "/api/coupons"
       const method = editingCoupon ? "PUT" : "POST"
+
+      console.log("[v0] Making request to:", url, "with method:", method)
 
       const response = await fetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...formData,
-          discount_value: Number.parseFloat(formData.discount_value),
-          minimum_order_amount: Number.parseFloat(formData.minimum_order_amount) || 0,
-          maximum_discount_amount: formData.maximum_discount_amount
-            ? Number.parseFloat(formData.maximum_discount_amount)
-            : null,
-          usage_limit: formData.usage_limit ? Number.parseInt(formData.usage_limit) : null,
-        }),
+        body: JSON.stringify(processedData),
       })
 
+      console.log("[v0] Response status:", response.status)
+      console.log("[v0] Response ok:", response.ok)
+
       if (response.ok) {
+        const result = await response.json()
+        console.log("[v0] Success result:", result)
         toast({
           title: "Success",
           description: `Coupon ${editingCoupon ? "updated" : "created"} successfully`,
@@ -112,9 +125,11 @@ export default function CouponsPage() {
         fetchCoupons()
       } else {
         const error = await response.json()
+        console.log("[v0] Error response:", error)
         throw new Error(error.error)
       }
     } catch (error: any) {
+      console.log("[v0] Catch block error:", error)
       toast({
         title: "Error",
         description: error.message || "Failed to save coupon",

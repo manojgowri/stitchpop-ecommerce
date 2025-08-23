@@ -171,7 +171,7 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
   return (
     <Card className="group overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-white">
       <Link href={`/product/${product.id}`}>
-        <div className="relative aspect-square bg-gray-200">
+        <div className="relative aspect-[4/5] sm:aspect-square bg-gray-200">
           {product.images?.[0] ? (
             <Image
               src={product.images[0] || "/placeholder.svg"}
@@ -182,8 +182,13 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
           ) : (
             <div className="w-full h-full flex items-center justify-center bg-gray-200">
               <div className="text-center">
-                <div className="w-12 h-12 mx-auto mb-2 bg-gray-300 rounded-full flex items-center justify-center">
-                  <svg className="w-6 h-6 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 mx-auto mb-1 sm:mb-2 bg-gray-300 rounded-full flex items-center justify-center">
+                  <svg
+                    className="w-4 h-4 sm:w-6 sm:h-6 text-gray-500"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
                     <path
                       strokeLinecap="round"
                       strokeLinejoin="round"
@@ -202,25 +207,29 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
             </div>
           )}
 
-          {product.is_on_sale && <Badge className="absolute top-2 left-2 bg-red-500">Sale</Badge>}
+          {product.is_on_sale && (
+            <Badge className="absolute top-1 left-1 sm:top-2 sm:left-2 bg-red-500 text-xs">Sale</Badge>
+          )}
 
           {/* Wishlist Heart Icon */}
           {showActions && (
             <Button
               size="sm"
               variant="ghost"
-              className="absolute top-2 right-2 h-8 w-8 p-0 bg-white/80 hover:bg-white"
+              className="absolute top-1 right-1 sm:top-2 sm:right-2 h-6 w-6 sm:h-8 sm:w-8 p-0 bg-white/80 hover:bg-white"
               onClick={handleWishlist}
             >
-              <Heart className={`h-4 w-4 ${isInWishlist ? "fill-red-500 text-red-500" : "text-gray-600"}`} />
+              <Heart
+                className={`h-3 w-3 sm:h-4 sm:w-4 ${isInWishlist ? "fill-red-500 text-red-500" : "text-gray-600"}`}
+              />
             </Button>
           )}
         </div>
       </Link>
 
-      <CardContent className="p-4 space-y-3">
+      <CardContent className="p-2 sm:p-4 space-y-1 sm:space-y-3">
         <Link href={`/product/${product.id}`}>
-          <h3 className="font-semibold text-gray-900 group-hover:text-gray-700 transition-colors line-clamp-2">
+          <h3 className="font-semibold text-sm sm:text-base text-gray-900 group-hover:text-gray-700 transition-colors line-clamp-2">
             {product.name}
           </h3>
         </Link>
@@ -230,20 +239,22 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
             {[...Array(5)].map((_, i) => (
               <Star
                 key={i}
-                className={`h-4 w-4 ${
+                className={`h-3 w-3 sm:h-4 sm:w-4 ${
                   i < Math.floor(product.rating || 0) ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
                 }`}
               />
             ))}
           </div>
-          <span className="text-sm text-gray-600">({product.rating || 4.4})</span>
+          <span className="text-xs sm:text-sm text-gray-600">({product.rating || 4.4})</span>
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="font-bold text-lg text-gray-900">₹{product.price?.toLocaleString()}</span>
+        <div className="flex items-center gap-1 sm:gap-2">
+          <span className="font-bold text-sm sm:text-lg text-gray-900">₹{product.price?.toLocaleString()}</span>
           {product.original_price && product.original_price > product.price && (
             <>
-              <span className="text-sm text-gray-500 line-through">₹{product.original_price.toLocaleString()}</span>
+              <span className="text-xs sm:text-sm text-gray-500 line-through">
+                ₹{product.original_price.toLocaleString()}
+              </span>
               <Badge variant="destructive" className="text-xs">
                 {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
               </Badge>
@@ -252,16 +263,20 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
         </div>
 
         {showActions && (
-          <div className="flex space-x-2 mt-4">
+          <div className="flex space-x-1 sm:space-x-2 mt-2 sm:mt-4">
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent text-xs sm:text-sm h-7 sm:h-9"
               onClick={handleAddToCart}
             >
               Add to Cart
             </Button>
-            <Button size="sm" className="flex-1 bg-gray-800 text-white hover:bg-gray-700" onClick={handleBuyNow}>
+            <Button
+              size="sm"
+              className="flex-1 bg-gray-800 text-white hover:bg-gray-700 text-xs sm:text-sm h-7 sm:h-9"
+              onClick={handleBuyNow}
+            >
               Buy Now
             </Button>
           </div>

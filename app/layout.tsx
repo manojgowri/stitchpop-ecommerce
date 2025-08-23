@@ -79,16 +79,17 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
         <meta name="google-site-verification" content="2dIuLHsZ-VrZVK1ZQTAuLFqT7eaP7hameErs36wo7VI" />
         <link rel="icon" href="/favicon.ico" sizes="any" />
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
           <CartProvider>
-            <div>
-              <div className="relative min-h-screen flex flex-col">
+            <div className="overflow-x-hidden">
+              <div className="relative min-h-screen flex flex-col w-full">
                 <Header />
-                <main className="flex-1">{children}</main>
+                <main className="flex-1 w-full">{children}</main>
                 <Footer />
               </div>
               <Toaster />

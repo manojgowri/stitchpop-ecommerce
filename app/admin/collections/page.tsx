@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Switch } from "@/components/ui/switch"
@@ -48,6 +49,13 @@ export default function CollectionsManagement() {
       const { data, error } = await supabase.from("collections").select("*").order("created_at", { ascending: false })
 
       if (error) throw error
+      console.log("[v0] Existing collections:", data)
+      if (data && data.length > 0) {
+        console.log(
+          "[v0] Existing category values:",
+          data.map((c) => c.category),
+        )
+      }
       setCollections(data || [])
     } catch (error) {
       console.error("Error fetching collections:", error)
@@ -66,6 +74,9 @@ export default function CollectionsManagement() {
     setLoading(true)
 
     try {
+      console.log("[v0] Submitting collection with data:", formData)
+      console.log("[v0] Category value:", formData.category)
+
       if (editingId) {
         // Update existing collection
         const { error } = await supabase
@@ -92,7 +103,10 @@ export default function CollectionsManagement() {
           },
         ])
 
-        if (error) throw error
+        if (error) {
+          console.error("[v0] Database error details:", error)
+          throw error
+        }
 
         toast({
           title: "Success",
@@ -211,14 +225,29 @@ export default function CollectionsManagement() {
                   <Label htmlFor="category" className="text-gray-300">
                     Category
                   </Label>
-                  <Input
-                    id="category"
+                  <Select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value })}
-                    placeholder="e.g., men, women"
+                    onValueChange={(value) => setFormData({ ...formData, category: value })}
                     required
-                    className="bg-gray-800 border-gray-600 text-white placeholder-gray-400"
-                  />
+                  >
+                    <SelectTrigger className="bg-gray-800 border-gray-600 text-white">
+                      <SelectValue placeholder="Select category" />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-600">
+                      <SelectItem value="men" className="text-white hover:bg-gray-700">
+                        Men
+                      </SelectItem>
+                      <SelectItem value="women" className="text-white hover:bg-gray-700">
+                        Women
+                      </SelectItem>
+                      <SelectItem value="kids" className="text-white hover:bg-gray-700">
+                        Kids
+                      </SelectItem>
+                      <SelectItem value="accessories" className="text-white hover:bg-gray-700">
+                        Accessories
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

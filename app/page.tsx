@@ -124,23 +124,23 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-black">
-      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-gray-800">
+    <div className="min-h-screen bg-black w-full overflow-x-hidden">
+      <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-gray-800 w-full">
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-gray-900/60 to-gray-800/80" />
-        <div className="relative z-10 text-center text-white max-w-6xl px-4">
-          <h1 className="text-5xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+        <div className="relative z-10 text-center text-white max-w-6xl px-4 sm:px-6 lg:px-8 w-full">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent leading-tight">
             Premium hoodies
           </h1>
-          <p className="text-xl lg:text-2xl mb-8 text-gray-300 max-w-4xl mx-auto">
+          <p className="text-lg sm:text-xl lg:text-2xl mb-8 text-gray-300 max-w-4xl mx-auto leading-relaxed">
             Discover our exclusive collection of premium fashion pieces crafted for the modern connoisseur
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+          <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
             <Button
               size="lg"
-              className="bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200"
+              className="bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200 w-full sm:w-auto"
             >
-              <Link href="/categories" className="inline-flex items-center">
+              <Link href="/categories" className="inline-flex items-center justify-center w-full">
                 EXPLORE COLLECTION
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>
@@ -150,7 +150,7 @@ export default function HomePage() {
       </section>
 
       {showSlider && (
-        <section className="relative h-[70vh] overflow-hidden bg-gray-900">
+        <section className="relative h-[50vh] sm:h-[60vh] lg:h-[70vh] overflow-hidden bg-gray-900 w-full">
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-gray-400">Loading banners...</div>
@@ -230,19 +230,19 @@ export default function HomePage() {
       )}
 
       {/* Categories Section */}
-      <section className="py-16 bg-gray-900">
-        <div className="container mx-auto px-4">
-          <div className="text-center space-y-4 mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-white">Shop by Category</h2>
-            <p className="text-gray-300 max-w-2xl mx-auto">
+      <section className="py-12 sm:py-16 bg-gray-900 w-full">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center space-y-4 mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">Shop by Category</h2>
+            <p className="text-gray-300 max-w-2xl mx-auto text-sm sm:text-base">
               Explore our curated collections designed for every style and occasion
             </p>
           </div>
-          <div className="grid md:grid-cols-2 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 sm:gap-8">
             {collections.map((collection) => (
-              <Link key={collection.name} href={collection.href} className="group">
-                <Card className="overflow-hidden border-0 bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
-                  <div className="relative aspect-[3/2]">
+              <Link key={collection.name} href={collection.href} className="group w-full">
+                <Card className="overflow-hidden border-0 bg-gray-800 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02] w-full">
+                  <div className="relative aspect-[3/2] w-full">
                     <Image
                       src={collection.image || "/placeholder.svg"}
                       alt={collection.name.includes("Men") ? "Men's Fashion" : "Women's Fashion"}
@@ -250,11 +250,11 @@ export default function HomePage() {
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
                     />
                     <div className="absolute inset-0 bg-black/60 group-hover:bg-black/40 transition-colors" />
-                    <div className="absolute inset-0 flex items-center justify-center text-center text-white">
+                    <div className="absolute inset-0 flex items-center justify-center text-center text-white p-4">
                       <div className="space-y-2">
-                        <h3 className="text-2xl lg:text-3xl font-bold">{collection.name}</h3>
-                        <p className="text-gray-300">{collection.description}</p>
-                        <Button className="mt-4 bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200">
+                        <h3 className="text-xl sm:text-2xl lg:text-3xl font-bold">{collection.name}</h3>
+                        <p className="text-gray-300 text-sm sm:text-base">{collection.description}</p>
+                        <Button className="mt-4 bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200 text-sm sm:text-base">
                           Shop Now
                           <ArrowRight className="ml-2 h-4 w-4" />
                         </Button>
@@ -268,27 +268,28 @@ export default function HomePage() {
         </div>
       </section>
 
-      <section className="py-16 bg-black">
-        <div className="container mx-auto px-4">
-          <div className="text-center space-y-4 mb-12">
-            <h2 className="text-3xl lg:text-4xl font-bold text-white">Featured Products</h2>
-            <p className="text-gray-300 max-w-2xl mx-auto">
+      {/* Featured Products Section */}
+      <section className="py-12 sm:py-16 bg-black w-full">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
+          <div className="text-center space-y-4 mb-8 sm:mb-12">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white">Featured Products</h2>
+            <p className="text-gray-300 max-w-2xl mx-auto text-sm sm:text-base">
               Discover our most popular items loved by customers worldwide
             </p>
           </div>
           {featuredProducts.length > 0 ? (
             <>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
                 {featuredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
-              <div className="text-center mt-12">
+              <div className="text-center mt-8 sm:mt-12">
                 <Button
                   size="lg"
-                  className="bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200"
+                  className="bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200 w-full sm:w-auto"
                 >
-                  <Link href="/categories" className="inline-flex items-center">
+                  <Link href="/categories" className="inline-flex items-center justify-center w-full">
                     View All Products
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Link>
@@ -297,12 +298,12 @@ export default function HomePage() {
             </>
           ) : (
             <div className="text-center text-gray-400">
-              <p>No featured products available at the moment.</p>
+              <p className="text-sm sm:text-base">No featured products available at the moment.</p>
               <Button
                 size="lg"
-                className="mt-4 bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200"
+                className="mt-4 bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200 w-full sm:w-auto"
               >
-                <Link href="/categories" className="inline-flex items-center">
+                <Link href="/categories" className="inline-flex items-center justify-center w-full">
                   Browse All Products
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
@@ -313,11 +314,11 @@ export default function HomePage() {
       </section>
 
       {/* Newsletter Section */}
-      <section className="py-16 bg-gray-900 text-white border-t border-gray-800">
-        <div className="container mx-auto px-4 text-center">
+      <section className="py-12 sm:py-16 bg-gray-900 text-white border-t border-gray-800 w-full">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 text-center max-w-7xl">
           <div className="max-w-2xl mx-auto space-y-6">
-            <h2 className="text-3xl lg:text-4xl font-bold">Stay in Style</h2>
-            <p className="text-gray-300">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-bold">Stay in Style</h2>
+            <p className="text-gray-300 text-sm sm:text-base">
               Subscribe to our newsletter and be the first to know about new collections, exclusive offers, and style
               tips.
             </p>
@@ -325,9 +326,9 @@ export default function HomePage() {
               <input
                 type="email"
                 placeholder="Enter your email"
-                className="flex-1 px-4 py-2 rounded-md text-white bg-gray-800 border border-gray-700 focus:border-white placeholder-gray-400"
+                className="flex-1 px-4 py-2 rounded-md text-white bg-gray-800 border border-gray-700 focus:border-white placeholder-gray-400 w-full"
               />
-              <Button className="bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200">
+              <Button className="bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200 w-full sm:w-auto">
                 Subscribe
               </Button>
             </div>
