@@ -92,7 +92,7 @@ export default function MenShirtsPage() {
           <Skeleton className="h-8 w-48 mb-2" />
           <Skeleton className="h-4 w-96" />
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {Array.from({ length: 8 }).map((_, i) => (
             <Card key={i} className="overflow-hidden">
               <Skeleton className="aspect-square w-full" />
@@ -137,7 +137,7 @@ export default function MenShirtsPage() {
 
       {/* Products Grid */}
       {products.length > 0 ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {products.map((product) => (
             <Link key={product.id} href={`/product/${product.id}`}>
               <Card className="overflow-hidden hover:shadow-lg transition-shadow cursor-pointer">

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Star, ArrowLeft } from 'lucide-react'
+import { Star, ArrowLeft } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 
 interface Product {
@@ -94,7 +94,7 @@ export default function WomenJeansPage() {
   }
 
   const sortProducts = () => {
-    let sorted = [...products]
+    const sorted = [...products]
 
     switch (sortBy) {
       case "price-low":
@@ -140,9 +140,7 @@ export default function WomenJeansPage() {
         {/* Filters */}
         <div className="bg-white rounded-lg p-4 mb-8 shadow-sm">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div className="text-sm text-gray-600">
-              Showing {filteredProducts.length} products
-            </div>
+            <div className="text-sm text-gray-600">Showing {filteredProducts.length} products</div>
             <div className="flex items-center space-x-4">
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-48">
@@ -161,7 +159,7 @@ export default function WomenJeansPage() {
         </div>
 
         {/* Products Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
           {filteredProducts.map((product) => (
             <Card key={product.id} className="group overflow-hidden hover:shadow-lg transition-shadow">
               <div className="relative overflow-hidden">
@@ -185,7 +183,7 @@ export default function WomenJeansPage() {
               <CardContent className="p-4">
                 <h3 className="font-semibold mb-2 line-clamp-2">{product.name}</h3>
                 <p className="text-sm text-gray-600 mb-2 line-clamp-2">{product.description}</p>
-                
+
                 <div className="flex items-center mb-2">
                   <div className="flex items-center">
                     {[...Array(5)].map((_, i) => (
@@ -213,15 +211,8 @@ export default function WomenJeansPage() {
                   {product.sizes.length} sizes • {product.colors.length} colors
                 </div>
 
-                <Button 
-                  className="w-full" 
-                  size="sm"
-                  disabled={product.stock === 0}
-                  asChild
-                >
-                  <Link href={`/product/${product.id}`}>
-                    {product.stock === 0 ? "Out of Stock" : "View Details"}
-                  </Link>
+                <Button className="w-full" size="sm" disabled={product.stock === 0} asChild>
+                  <Link href={`/product/${product.id}`}>{product.stock === 0 ? "Out of Stock" : "View Details"}</Link>
                 </Button>
               </CardContent>
             </Card>

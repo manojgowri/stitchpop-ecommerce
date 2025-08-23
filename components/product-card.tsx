@@ -7,7 +7,7 @@ import Image from "next/image"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { Star, Heart } from "lucide-react"
+import { Star, Heart, ShoppingCart, Zap } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import { useRouter } from "next/navigation"
@@ -171,7 +171,7 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
   return (
     <Card className="group overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 hover:scale-[1.02] bg-white">
       <Link href={`/product/${product.id}`}>
-        <div className="relative aspect-[4/5] sm:aspect-square bg-gray-200">
+        <div className="relative aspect-[5/6] sm:aspect-square bg-gray-200">
           {product.images?.[0] ? (
             <Image
               src={product.images[0] || "/placeholder.svg"}
@@ -227,14 +227,14 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
         </div>
       </Link>
 
-      <CardContent className="p-2 sm:p-4 space-y-1 sm:space-y-3">
+      <CardContent className="p-1.5 sm:p-4 space-y-1 sm:space-y-3">
         <Link href={`/product/${product.id}`}>
-          <h3 className="font-semibold text-sm sm:text-base text-gray-900 group-hover:text-gray-700 transition-colors line-clamp-2">
+          <h3 className="font-medium text-xs sm:text-base text-gray-900 group-hover:text-gray-700 transition-colors line-clamp-2">
             {product.name}
           </h3>
         </Link>
 
-        <div className="flex items-center gap-1">
+        <div className="hidden sm:flex items-center gap-1">
           <div className="flex items-center">
             {[...Array(5)].map((_, i) => (
               <Star
@@ -249,13 +249,13 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
         </div>
 
         <div className="flex items-center gap-1 sm:gap-2">
-          <span className="font-bold text-sm sm:text-lg text-gray-900">₹{product.price?.toLocaleString()}</span>
+          <span className="font-bold text-xs sm:text-lg text-gray-900">₹{product.price?.toLocaleString()}</span>
           {product.original_price && product.original_price > product.price && (
             <>
-              <span className="text-xs sm:text-sm text-gray-500 line-through">
+              <span className="text-[10px] sm:text-sm text-gray-500 line-through">
                 ₹{product.original_price.toLocaleString()}
               </span>
-              <Badge variant="destructive" className="text-xs">
+              <Badge variant="destructive" className="text-[8px] sm:text-xs px-1 py-0">
                 {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
               </Badge>
             </>
@@ -263,21 +263,23 @@ export function ProductCard({ product, showActions = true }: ProductCardProps) {
         </div>
 
         {showActions && (
-          <div className="flex space-x-1 sm:space-x-2 mt-2 sm:mt-4">
+          <div className="flex space-x-1 sm:space-x-2 mt-1 sm:mt-4">
             <Button
               size="sm"
               variant="outline"
-              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent text-xs sm:text-sm h-7 sm:h-9"
+              className="flex-1 border-gray-300 text-gray-700 hover:bg-gray-50 bg-transparent h-6 sm:h-9 sm:text-sm"
               onClick={handleAddToCart}
             >
-              Add to Cart
+              <ShoppingCart className="h-3 w-3 sm:hidden" />
+              <span className="hidden sm:inline">Add to Cart</span>
             </Button>
             <Button
               size="sm"
-              className="flex-1 bg-gray-800 text-white hover:bg-gray-700 text-xs sm:text-sm h-7 sm:h-9"
+              className="flex-1 bg-gray-800 text-white hover:bg-gray-700 h-6 sm:h-9 sm:text-sm"
               onClick={handleBuyNow}
             >
-              Buy Now
+              <Zap className="h-3 w-3 sm:hidden" />
+              <span className="hidden sm:inline">Buy Now</span>
             </Button>
           </div>
         )}

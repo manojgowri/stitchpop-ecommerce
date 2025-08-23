@@ -98,7 +98,7 @@ export default function KidsPage() {
                 <Card className="overflow-hidden border-0 shadow-lg hover:shadow-xl transition-all duration-300 group-hover:scale-[1.02]">
                   <div className="relative aspect-[4/3]">
                     <Image
-                      src={`/placeholder.svg?height=300&width=400&text=${category.name}`}
+                      src={`/placeholder_image.png?height=300&width=400&text=${category.name}`}
                       alt={category.name}
                       fill
                       className="object-cover group-hover:scale-105 transition-transform duration-300"
@@ -130,7 +130,7 @@ export default function KidsPage() {
               <h2 className="text-3xl md:text-4xl font-bold mb-4 text-gray-800">Featured Products</h2>
               <p className="text-gray-600 text-lg">Popular items for kids</p>
             </div>
-            <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {featuredProducts.map((product) => (
                 <Link key={product.id} href={`/product/${product.id}`} className="group">
                   <Card className="overflow-hidden border-0 shadow-md hover:shadow-lg transition-all duration-300 group-hover:scale-[1.02]">

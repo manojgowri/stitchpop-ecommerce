@@ -257,7 +257,7 @@ export default function WomenPage() {
             <p className="text-gray-600 text-lg">Handpicked favorites from our women's collection</p>
           </div>
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {[...Array(8)].map((_, i) => (
                 <Card key={i} className="overflow-hidden">
                   <div className="animate-pulse">
@@ -271,7 +271,7 @@ export default function WomenPage() {
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {featuredProducts.map((product) => (
                 <ProductCard
                   key={product.id}
