@@ -1,5 +1,7 @@
 "use client"
 
+import { DialogTrigger } from "@/components/ui/dialog"
+
 import type React from "react"
 
 import { useState, useEffect } from "react"
@@ -15,15 +17,8 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Switch } from "@/components/ui/switch"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog"
-import { Plus, Edit, Trash2, AlertTriangle, Package, ShoppingCart, TrendingUp, Upload } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { Plus, Edit, Trash2, AlertTriangle, Package, ShoppingCart, TrendingUp, Upload, ImageIcon } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 import Link from "next/link"
@@ -87,8 +82,11 @@ interface Order {
 export default function AdminDashboard() {
   const [user, setUser] = useState<any>(null)
   const [products, setProducts] = useState<Product[]>([])
+  const [filteredProducts, setFilteredProducts] = useState<Product[]>([])
   const [themes, setThemes] = useState<Theme[]>([])
+  const [filteredThemes, setFilteredThemes] = useState<Theme[]>([])
   const [categories, setCategories] = useState<Category[]>([])
+  const [filteredCategories, setFilteredCategories] = useState<Category[]>([])
   const [orders, setOrders] = useState<Order[]>([])
   const [loading, setLoading] = useState(true)
   const [editingProduct, setEditingProduct] = useState<Product | null>(null)
@@ -100,6 +98,27 @@ export default function AdminDashboard() {
     totalOrders: 0,
     totalRevenue: 0,
     lowStockCount: 0,
+  })
+
+  const [productFilters, setProductFilters] = useState({
+    search: "",
+    category: "",
+    theme: "",
+    gender: "",
+    status: "",
+    stockLevel: "",
+    saleStatus: "",
+  })
+
+  const [categoryFilters, setCategoryFilters] = useState({
+    search: "",
+    gender: "",
+    status: "",
+  })
+
+  const [themeFilters, setThemeFilters] = useState({
+    search: "",
+    status: "",
   })
 
   const [newProduct, setNewProduct] = useState({
@@ -241,6 +260,7 @@ export default function AdminDashboard() {
 
       if (error) throw error
       setProducts(data || [])
+      setFilteredProducts(data || [])
     } catch (error) {
       console.error("Error fetching products:", error)
     }
@@ -252,6 +272,7 @@ export default function AdminDashboard() {
 
       if (error) throw error
       setThemes(data || [])
+      setFilteredThemes(data || [])
     } catch (error) {
       console.error("Error fetching themes:", error)
     }
@@ -263,6 +284,7 @@ export default function AdminDashboard() {
 
       if (error) throw error
       setCategories(data || [])
+      setFilteredCategories(data || [])
     } catch (error) {
       console.error("Error fetching categories:", error)
     }
@@ -652,6 +674,149 @@ export default function AdminDashboard() {
     }
   }
 
+  useEffect(() => {
+    let filtered = [...products]
+
+    // Search filter
+    if (productFilters.search) {
+      filtered = filtered.filter(
+        (product) =>
+          product.name.toLowerCase().includes(productFilters.search.toLowerCase()) ||
+          product.description.toLowerCase().includes(productFilters.search.toLowerCase()),
+      )
+    }
+
+    // Category filter
+    if (productFilters.category) {
+      filtered = filtered.filter((product) => product.category_id === productFilters.category)
+    }
+
+    // Theme filter
+    if (productFilters.theme) {
+      if (productFilters.theme === "no-theme") {
+        filtered = filtered.filter((product) => !product.theme_id)
+      } else {
+        filtered = filtered.filter((product) => product.theme_id === productFilters.theme)
+      }
+    }
+
+    // Gender filter
+    if (productFilters.gender) {
+      filtered = filtered.filter((product) => product.gender === productFilters.gender)
+    }
+
+    // Status filter
+    if (productFilters.status) {
+      if (productFilters.status === "active") {
+        filtered = filtered.filter((product) => product.is_active)
+      } else if (productFilters.status === "inactive") {
+        filtered = filtered.filter((product) => !product.is_active)
+      }
+    }
+
+    // Stock level filter
+    if (productFilters.stockLevel) {
+      if (productFilters.stockLevel === "out-of-stock") {
+        filtered = filtered.filter((product) => product.stock === 0)
+      } else if (productFilters.stockLevel === "low-stock") {
+        filtered = filtered.filter((product) => product.stock > 0 && product.stock <= 5)
+      } else if (productFilters.stockLevel === "in-stock") {
+        filtered = filtered.filter((product) => product.stock > 5)
+      }
+    }
+
+    // Sale status filter
+    if (productFilters.saleStatus) {
+      if (productFilters.saleStatus === "on-sale") {
+        filtered = filtered.filter((product) => product.is_on_sale)
+      } else if (productFilters.saleStatus === "regular") {
+        filtered = filtered.filter((product) => !product.is_on_sale)
+      }
+    }
+
+    setFilteredProducts(filtered)
+  }, [products, productFilters])
+
+  useEffect(() => {
+    let filtered = [...categories]
+
+    // Search filter
+    if (categoryFilters.search) {
+      filtered = filtered.filter(
+        (category) =>
+          category.name.toLowerCase().includes(categoryFilters.search.toLowerCase()) ||
+          (category.description && category.description.toLowerCase().includes(categoryFilters.search.toLowerCase())),
+      )
+    }
+
+    // Gender filter
+    if (categoryFilters.gender) {
+      filtered = filtered.filter((category) => category.gender === categoryFilters.gender)
+    }
+
+    // Status filter
+    if (categoryFilters.status) {
+      if (categoryFilters.status === "active") {
+        filtered = filtered.filter((category) => category.is_active)
+      } else if (categoryFilters.status === "inactive") {
+        filtered = filtered.filter((category) => !category.is_active)
+      }
+    }
+
+    setFilteredCategories(filtered)
+  }, [categories, categoryFilters])
+
+  useEffect(() => {
+    let filtered = [...themes]
+
+    // Search filter
+    if (themeFilters.search) {
+      filtered = filtered.filter(
+        (theme) =>
+          theme.name.toLowerCase().includes(themeFilters.search.toLowerCase()) ||
+          (theme.description && theme.description.toLowerCase().includes(themeFilters.search.toLowerCase())),
+      )
+    }
+
+    // Status filter
+    if (themeFilters.status) {
+      if (themeFilters.status === "active") {
+        filtered = filtered.filter((theme) => theme.is_active)
+      } else if (themeFilters.status === "inactive") {
+        filtered = filtered.filter((theme) => !theme.is_active)
+      }
+    }
+
+    setFilteredThemes(filtered)
+  }, [themes, themeFilters])
+
+  const clearProductFilters = () => {
+    setProductFilters({
+      search: "",
+      category: "",
+      theme: "",
+      gender: "",
+      status: "",
+      stockLevel: "",
+      saleStatus: "",
+    })
+  }
+
+  const clearCategoryFilters = () => {
+    setCategoryFilters({
+      search: "",
+      gender: "",
+      status: "",
+    })
+  }
+
+  const clearThemeFilters = () => {
+    setThemeFilters({
+      search: "",
+      status: "",
+    })
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -720,10 +885,11 @@ export default function AdminDashboard() {
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="products" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
+          <TabsList className="grid w-full grid-cols-8">
             <TabsTrigger value="products">Products</TabsTrigger>
             <TabsTrigger value="themes">Themes</TabsTrigger>
             <TabsTrigger value="categories">Categories</TabsTrigger>
+            <TabsTrigger value="collections">Collections</TabsTrigger>
             <TabsTrigger value="coupons">Coupons</TabsTrigger>
             <TabsTrigger value="banners">Banners</TabsTrigger>
             <TabsTrigger value="orders">Orders</TabsTrigger>
@@ -1062,6 +1228,144 @@ export default function AdminDashboard() {
             </div>
 
             <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Filter Products</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  <div>
+                    <Label htmlFor="product-search">Search</Label>
+                    <Input
+                      id="product-search"
+                      placeholder="Search products..."
+                      value={productFilters.search}
+                      onChange={(e) => setProductFilters({ ...productFilters, search: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="product-category">Category</Label>
+                    <Select
+                      value={productFilters.category}
+                      onValueChange={(value) => setProductFilters({ ...productFilters, category: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All categories" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All categories</SelectItem>
+                        {categories
+                          .filter((cat) => cat.is_active)
+                          .map((category) => (
+                            <SelectItem key={category.id} value={category.id}>
+                              {category.name} ({category.gender})
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="product-theme">Theme</Label>
+                    <Select
+                      value={productFilters.theme}
+                      onValueChange={(value) => setProductFilters({ ...productFilters, theme: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All themes" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All themes</SelectItem>
+                        <SelectItem value="no-theme">No Theme</SelectItem>
+                        {themes
+                          .filter((theme) => theme.is_active)
+                          .map((theme) => (
+                            <SelectItem key={theme.id} value={theme.id}>
+                              {theme.name}
+                            </SelectItem>
+                          ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="product-gender">Gender</Label>
+                    <Select
+                      value={productFilters.gender}
+                      onValueChange={(value) => setProductFilters({ ...productFilters, gender: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All genders" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All genders</SelectItem>
+                        <SelectItem value="men">Men</SelectItem>
+                        <SelectItem value="women">Women</SelectItem>
+                        <SelectItem value="kids">Kids</SelectItem>
+                        <SelectItem value="couple">Couple</SelectItem>
+                        <SelectItem value="unisex">Unisex</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="product-status">Status</Label>
+                    <Select
+                      value={productFilters.status}
+                      onValueChange={(value) => setProductFilters({ ...productFilters, status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="product-stock">Stock Level</Label>
+                    <Select
+                      value={productFilters.stockLevel}
+                      onValueChange={(value) => setProductFilters({ ...productFilters, stockLevel: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All stock levels" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All stock levels</SelectItem>
+                        <SelectItem value="out-of-stock">Out of Stock</SelectItem>
+                        <SelectItem value="low-stock">Low Stock (≤5)</SelectItem>
+                        <SelectItem value="in-stock">In Stock (&gt;5)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="product-sale">Sale Status</Label>
+                    <Select
+                      value={productFilters.saleStatus}
+                      onValueChange={(value) => setProductFilters({ ...productFilters, saleStatus: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All sale statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All sale statuses</SelectItem>
+                        <SelectItem value="on-sale">On Sale</SelectItem>
+                        <SelectItem value="regular">Regular Price</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="flex items-end">
+                    <Button variant="outline" onClick={clearProductFilters} className="w-full bg-transparent">
+                      Clear Filters
+                    </Button>
+                  </div>
+                </div>
+                <div className="mt-4 text-sm text-gray-600">
+                  Showing {filteredProducts.length} of {products.length} products
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card>
               <CardContent className="p-0">
                 <Table>
                   <TableHeader>
@@ -1078,7 +1382,7 @@ export default function AdminDashboard() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map((product) => (
+                    {filteredProducts.map((product) => (
                       <TableRow key={product.id}>
                         <TableCell className="font-medium">{product.name}</TableCell>
                         <TableCell>{product.categories?.name || "N/A"}</TableCell>
@@ -1158,6 +1462,7 @@ export default function AdminDashboard() {
                           <SelectValue placeholder="Select gender" />
                         </SelectTrigger>
                         <SelectContent>
+                          <SelectItem value="all">All genders</SelectItem>
                           <SelectItem value="men">Men</SelectItem>
                           <SelectItem value="women">Women</SelectItem>
                           <SelectItem value="kids">Kids</SelectItem>
@@ -1182,6 +1487,67 @@ export default function AdminDashboard() {
               </Dialog>
             </div>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Filter Categories</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div>
+                    <Label htmlFor="category-search">Search</Label>
+                    <Input
+                      id="category-search"
+                      placeholder="Search categories..."
+                      value={categoryFilters.search}
+                      onChange={(e) => setCategoryFilters({ ...categoryFilters, search: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="category-gender-filter">Gender</Label>
+                    <Select
+                      value={categoryFilters.gender}
+                      onValueChange={(value) => setCategoryFilters({ ...categoryFilters, gender: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All genders" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All genders</SelectItem>
+                        <SelectItem value="men">Men</SelectItem>
+                        <SelectItem value="women">Women</SelectItem>
+                        <SelectItem value="kids">Kids</SelectItem>
+                        <SelectItem value="unisex">Unisex</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div>
+                    <Label htmlFor="category-status-filter">Status</Label>
+                    <Select
+                      value={categoryFilters.status}
+                      onValueChange={(value) => setCategoryFilters({ ...categoryFilters, status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mt-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {filteredCategories.length} of {categories.length} categories
+                  </div>
+                  <Button variant="outline" onClick={clearCategoryFilters}>
+                    Clear Filters
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="active">Active Categories</TabsTrigger>
@@ -1202,7 +1568,7 @@ export default function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {categories
+                        {filteredCategories
                           .filter((cat) => cat.is_active)
                           .map((category) => (
                             <TableRow key={category.id}>
@@ -1244,7 +1610,7 @@ export default function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {categories
+                        {filteredCategories
                           .filter((cat) => !cat.is_active)
                           .map((category) => (
                             <TableRow key={category.id}>
@@ -1326,6 +1692,49 @@ export default function AdminDashboard() {
               </Dialog>
             </div>
 
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-lg">Filter Themes</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <Label htmlFor="theme-search">Search</Label>
+                    <Input
+                      id="theme-search"
+                      placeholder="Search themes..."
+                      value={themeFilters.search}
+                      onChange={(e) => setThemeFilters({ ...themeFilters, search: e.target.value })}
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="theme-status-filter">Status</Label>
+                    <Select
+                      value={themeFilters.status}
+                      onValueChange={(value) => setThemeFilters({ ...themeFilters, status: value })}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        <SelectItem value="active">Active</SelectItem>
+                        <SelectItem value="inactive">Inactive</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <div className="flex justify-between items-center mt-4">
+                  <div className="text-sm text-gray-600">
+                    Showing {filteredThemes.length} of {themes.length} themes
+                  </div>
+                  <Button variant="outline" onClick={clearThemeFilters}>
+                    Clear Filters
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
             <Tabs value={activeTab} onValueChange={setActiveTab}>
               <TabsList>
                 <TabsTrigger value="active">Active Themes</TabsTrigger>
@@ -1346,7 +1755,7 @@ export default function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {themes
+                        {filteredThemes
                           .filter((theme) => theme.is_active)
                           .map((theme) => (
                             <TableRow key={theme.id}>
@@ -1400,7 +1809,7 @@ export default function AdminDashboard() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {themes
+                        {filteredThemes
                           .filter((theme) => !theme.is_active)
                           .map((theme) => (
                             <TableRow key={theme.id}>
@@ -1440,6 +1849,30 @@ export default function AdminDashboard() {
                 </Card>
               </TabsContent>
             </Tabs>
+          </TabsContent>
+
+          <TabsContent value="collections">
+            <Card>
+              <CardHeader>
+                <CardTitle>Collection Cover Photos</CardTitle>
+                <CardDescription>
+                  Manage cover images for Men's and Women's collections displayed on the homepage
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="text-center py-8">
+                  <p className="text-gray-600 mb-4">
+                    Collection cover photos can be managed through the dedicated Collections page.
+                  </p>
+                  <Link href="/admin/collections">
+                    <Button className="bg-gray-800 text-white hover:bg-gray-700">
+                      <ImageIcon className="h-4 w-4 mr-2" />
+                      Manage Collections
+                    </Button>
+                  </Link>
+                </div>
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="coupons" className="space-y-6">
@@ -1688,7 +2121,7 @@ export default function AdminDashboard() {
                   <Label htmlFor="editCategoryGender">Gender</Label>
                   <Select
                     value={editingCategory.gender}
-                    onValueChange={(value) => setEditingCategory({ ...editingCategory, gender: value })}
+                    onChange={(value) => setEditingCategory({ ...editingCategory, gender: value })}
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select gender" />

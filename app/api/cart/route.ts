@@ -64,6 +64,23 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "User ID and Product ID are required" }, { status: 400 })
     }
 
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+    if (!uuidRegex.test(product_id)) {
+      console.error("Invalid product ID format:", product_id)
+      return NextResponse.json({ error: "Invalid product ID format" }, { status: 400 })
+    }
+
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select("id")
+      .eq("id", product_id)
+      .single()
+
+    if (productError || !product) {
+      console.error("Product not found:", product_id)
+      return NextResponse.json({ error: "Product not found" }, { status: 404 })
+    }
+
     const { data: existingItem, error: checkError } = await supabase
       .from("cart_items")
       .select("id, quantity")
