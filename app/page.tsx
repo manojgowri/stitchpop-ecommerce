@@ -13,7 +13,8 @@ interface Banner {
   id: string
   title: string
   subtitle: string | null
-  image_url: string
+  desktop_image_url: string
+  mobile_image_url?: string
   redirect_url: string | null
   is_active: boolean
   display_order: number
@@ -166,7 +167,7 @@ export default function HomePage() {
                 >
                   <div className="relative h-full">
                     <Image
-                      src={banner.image_url || "/placeholder.svg"}
+                      src={banner.desktop_image_url || "/placeholder.svg"}
                       alt={banner.title}
                       fill
                       className="object-cover"
