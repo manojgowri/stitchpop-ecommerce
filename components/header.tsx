@@ -26,8 +26,8 @@ import {
 } from "@/components/ui/navigation-menu"
 import { Search, ShoppingCart, User, Menu, X, Heart } from "lucide-react"
 import { supabase } from "@/lib/supabase"
-import { CartSlideOver } from "@/components/cart-slide-over"
 import { useCart } from "@/lib/cart-context"
+import { useAuth } from "@/lib/auth-context"
 
 interface Category {
   id: string
@@ -37,33 +37,17 @@ interface Category {
 
 export function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [isCartOpen, setIsCartOpen] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const { user, signOut: authSignOut } = useAuth()
   const { cartCount } = useCart()
   const [searchQuery, setSearchQuery] = useState("")
   const [categories, setCategories] = useState<Category[]>([])
   const router = useRouter()
 
-  useEffect(() => {
-    // Get initial session
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setUser(session?.user || null)
-    }
-
-    getSession()
-
-    // Listen for auth changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setUser(session?.user || null)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  const handleSearch = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault()
+    // Implement search logic here
+    console.log("Search query:", searchQuery)
+  }
 
   useEffect(() => {
     const loadCategories = async () => {
@@ -85,15 +69,8 @@ export function Header() {
   }, [])
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut()
+    await authSignOut()
     router.push("/")
-  }
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault()
-    if (searchQuery.trim()) {
-      router.push(`/search?q=${encodeURIComponent(searchQuery.trim())}`)
-    }
   }
 
   const menCategories = categories.filter((cat) => cat.gender === "men" || cat.gender === "unisex")
@@ -173,7 +150,7 @@ export function Header() {
                         <NavigationMenuLink key={category.id} asChild>
                           <Link
                             href={`/kids/${category.name.toLowerCase().replace(/\s+/g, "-")}`}
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
+                            className="group inline-flex h-10 w-max items-center justify-center rounded-md bg-white px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 hover:text-gray-900 focus:bg-gray-100 focus:text-gray-900 focus:outline-none disabled:pointer-events-none disabled:opacity-50 data-[active]:bg-gray-100/50 data-[state=open]:bg-gray-100/50"
                           >
                             <div className="text-sm font-medium leading-none">{category.name}</div>
                           </Link>
@@ -222,7 +199,13 @@ export function Header() {
                 variant="ghost"
                 size="sm"
                 className="relative text-gray-700 hover:text-gray-900"
-                onClick={() => setIsCartOpen(true)}
+                onClick={() => {
+                  if (user) {
+                    router.push("/cart")
+                  } else {
+                    router.push("/auth/login?redirect=/cart")
+                  }
+                }}
               >
                 <ShoppingCart className="h-5 w-5" />
                 {cartCount > 0 && (
@@ -358,9 +341,6 @@ export function Header() {
           )}
         </div>
       </header>
-
-      {/* Cart Slide Over */}
-      <CartSlideOver isOpen={isCartOpen} onClose={() => setIsCartOpen(false)} />
     </>
   )
 }

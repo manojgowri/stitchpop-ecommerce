@@ -7,6 +7,7 @@ import { Toaster } from "@/components/ui/toaster"
 import { Header } from "@/components/header"
 import { Footer } from "@/components/footer"
 import { CartProvider } from "@/lib/cart-context"
+import { AuthProvider } from "@/lib/auth-context"
 
 const inter = Inter({ subsets: ["latin"] })
 
@@ -85,16 +86,18 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-          <CartProvider>
-            <div className="overflow-x-hidden">
-              <div className="relative min-h-screen flex flex-col w-full">
-                <Header />
-                <main className="flex-1 w-full">{children}</main>
-                <Footer />
+          <AuthProvider>
+            <CartProvider>
+              <div className="overflow-x-hidden">
+                <div className="relative min-h-screen flex flex-col w-full">
+                  <Header />
+                  <main className="flex-1 w-full">{children}</main>
+                  <Footer />
+                </div>
+                <Toaster />
               </div>
-              <Toaster />
-            </div>
-          </CartProvider>
+            </CartProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

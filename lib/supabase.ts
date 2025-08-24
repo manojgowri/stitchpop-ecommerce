@@ -1,4 +1,5 @@
-import { createClient as createSupabaseClient } from "@supabase/supabase-js"
+import { createBrowserClient, createServerClient } from "@supabase/ssr"
+import { cookies } from "next/headers"
 
 // Environment variables with fallbacks for build time
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -8,79 +9,178 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error("Missing Supabase environment variables")
 }
 
-// Create a singleton client for use throughout the app
-export const supabase = createSupabaseClient(supabaseUrl, supabaseAnonKey)
-
 export function createClient() {
-  return createSupabaseClient(supabaseUrl, supabaseAnonKey)
+  return createBrowserClient(supabaseUrl, supabaseAnonKey, {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: false,
+      detectSessionInUrl: true,
+      flowType: "pkce",
+      storageKey: "stitch-pop-auth",
+    },
+    global: {
+      fetch: async (url, options = {}) => {
+        try {
+          console.log("[v0] Supabase fetch to:", url)
+
+          const controller = new AbortController()
+          const timeoutId = setTimeout(() => controller.abort(), 5000) // 5 second timeout
+
+          const response = await fetch(url, {
+            ...options,
+            signal: controller.signal,
+          })
+
+          clearTimeout(timeoutId)
+          console.log("[v0] Supabase fetch success:", response.status)
+          return response
+        } catch (error) {
+          console.error("[v0] Supabase fetch error:", error)
+          if (error.name === "AbortError" || error.message.includes("fetch")) {
+            console.log("[v0] Returning mock response to prevent auth reset")
+            return new Response(JSON.stringify({ error: "Network timeout" }), {
+              status: 408,
+              headers: { "Content-Type": "application/json" },
+            })
+          }
+          throw error
+        }
+      },
+    },
+  })
 }
 
-// Server-side client with service role key
-export function createServerClient() {
+// Server-side Supabase client that reads user sessions from cookies
+export function createSupabaseServerClient() {
+  const cookieStore = cookies()
+
+  return createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      get(name: string) {
+        return cookieStore.get(name)?.value
+      },
+      set(name: string, value: string, options: any) {
+        try {
+          cookieStore.set({ name, value, ...options })
+        } catch {
+          // The `set` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
+      },
+      remove(name: string, options: any) {
+        try {
+          cookieStore.set({ name, value: "", ...options })
+        } catch {
+          // The `delete` method was called from a Server Component.
+          // This can be ignored if you have middleware refreshing
+          // user sessions.
+        }
+      },
+    },
+  })
+}
+
+export function createServiceRoleClient() {
   const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY
 
   if (!supabaseServiceKey) {
     throw new Error("Missing Supabase service role key")
   }
 
-  return createSupabaseClient(supabaseUrl, supabaseServiceKey)
-}
-
-// Auth helpers
-export const signInWithGoogle = async () => {
-  const client = createClient()
-
-  const { data, error } = await client.auth.signInWithOAuth({
-    provider: "google",
-    options: {
-      redirectTo: `https://www.stitchpop.in/auth/callback`,
-      queryParams: {
-        access_type: "offline",
-        prompt: "consent",
+  return createServerClient(supabaseUrl, supabaseServiceKey, {
+    cookies: {
+      get() {
+        return undefined
       },
+      set() {},
+      remove() {},
     },
   })
-  return { data, error }
+}
+
+// Legacy export for backward compatibility
+export const supabase = createClient()
+
+export const signInWithGoogle = async () => {
+  try {
+    const client = createClient()
+
+    const { data, error } = await client.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo: `${window.location.origin}/auth/callback`,
+        queryParams: {
+          access_type: "offline",
+          prompt: "consent",
+        },
+      },
+    })
+    return { data, error }
+  } catch (error) {
+    console.error("[v0] Google sign-in error:", error)
+    return { data: null, error: { message: "Network error during sign-in" } }
+  }
 }
 
 export const signOut = async () => {
-  const client = createClient()
-  const { error } = await client.auth.signOut()
-  return { error }
+  try {
+    const client = createClient()
+    const { error } = await client.auth.signOut()
+    return { error }
+  } catch (error) {
+    console.error("[v0] Sign-out error:", error)
+    return { error: { message: "Network error during sign-out" } }
+  }
 }
 
 export const getCurrentUser = async () => {
-  const client = createClient()
-  const {
-    data: { user },
-    error,
-  } = await client.auth.getUser()
-  return { user, error }
+  try {
+    const client = createClient()
+    const {
+      data: { session },
+      error,
+    } = await client.auth.getSession()
+    return { user: session?.user || null, error }
+  } catch (error) {
+    console.error("[v0] Get user error:", error)
+    return { user: null, error: { message: "Network error getting user" } }
+  }
 }
 
 export const signUpWithEmail = async (email: string, password: string, name: string) => {
-  const client = createClient()
+  try {
+    const client = createClient()
 
-  const { data, error } = await client.auth.signUp({
-    email,
-    password,
-    options: {
-      emailRedirectTo: `https://www.stitchpop.in/auth/callback`,
-      data: {
-        name,
+    const { data, error } = await client.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/auth/callback`,
+        data: {
+          name,
+        },
       },
-    },
-  })
-  return { data, error }
+    })
+    return { data, error }
+  } catch (error) {
+    console.error("[v0] Sign-up error:", error)
+    return { data: null, error: { message: "Network error during sign-up" } }
+  }
 }
 
 export const resetPassword = async (email: string) => {
-  const client = createClient()
+  try {
+    const client = createClient()
 
-  const { data, error } = await client.auth.resetPasswordForEmail(email, {
-    redirectTo: `https://www.stitchpop.in/auth/reset-password`,
-  })
-  return { data, error }
+    const { data, error } = await client.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/auth/reset-password`,
+    })
+    return { data, error }
+  } catch (error) {
+    console.error("[v0] Reset password error:", error)
+    return { data: null, error: { message: "Network error during password reset" } }
+  }
 }
 
 // Database types

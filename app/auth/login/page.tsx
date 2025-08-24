@@ -12,7 +12,7 @@ import { Label } from "@/components/ui/label"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Separator } from "@/components/ui/separator"
 import { Eye, EyeOff } from "lucide-react"
-import { supabase } from "@/lib/supabase"
+import { createClient } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
 
 export default function LoginPage() {
@@ -30,21 +30,26 @@ export default function LoginPage() {
     setError("")
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const supabase = createClient()
+
+      console.log("[v0] Login: Attempting sign in for", email)
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       })
 
       if (error) throw error
 
+      console.log("[v0] Login: Sign in successful for", data.user?.email)
+
       toast({
         title: "Welcome back!",
         description: "You have been signed in successfully.",
       })
 
-      router.push("/")
-      router.refresh()
+      window.location.href = "/"
     } catch (error: any) {
+      console.error("[v0] Login error:", error)
       setError(error.message || "An error occurred during sign in")
     } finally {
       setLoading(false)
@@ -53,6 +58,9 @@ export default function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     try {
+      const supabase = createClient()
+
+      console.log("[v0] Login: Attempting Google sign in")
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
@@ -62,6 +70,7 @@ export default function LoginPage() {
 
       if (error) throw error
     } catch (error: any) {
+      console.error("[v0] Google sign in error:", error)
       setError(error.message || "An error occurred during Google sign in")
     }
   }

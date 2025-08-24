@@ -55,18 +55,35 @@ export default function CartPage() {
       }
 
       setUser(session.user)
-      await fetchCartItems(session.user.id)
+      await fetchCartItems()
     }
 
     checkUserAndFetchCart()
   }, [router])
 
-  const fetchCartItems = async (userId: string) => {
+  const fetchCartItems = async () => {
     try {
-      const response = await fetch(`/api/cart?userId=${userId}`)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const response = await fetch("/api/cart", {
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
+        },
+      })
+
       if (response.ok) {
         const data = await response.json()
         setCartItems(data)
+      } else if (response.status === 401) {
+        console.error("Authentication failed, redirecting to login")
+        router.push("/auth/login")
+        return
       } else {
         console.error("Failed to fetch cart items")
         toast({
@@ -91,10 +108,18 @@ export default function CartPage() {
     if (newQuantity < 1) return
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       const response = await fetch(`/api/cart/${itemId}`, {
         method: "PUT",
+        credentials: "include",
         headers: {
           "Content-Type": "application/json",
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
         },
         body: JSON.stringify({
           quantity: newQuantity,
@@ -107,6 +132,9 @@ export default function CartPage() {
           title: "Success",
           description: "Quantity updated",
         })
+      } else if (response.status === 401) {
+        router.push("/auth/login")
+        return
       } else {
         throw new Error("Failed to update quantity")
       }
@@ -122,8 +150,18 @@ export default function CartPage() {
 
   const removeItem = async (itemId: string) => {
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       const response = await fetch(`/api/cart/${itemId}`, {
         method: "DELETE",
+        credentials: "include",
+        headers: {
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
+        },
       })
 
       if (response.ok) {
@@ -132,6 +170,9 @@ export default function CartPage() {
           title: "Success",
           description: "Item removed from cart",
         })
+      } else if (response.status === 401) {
+        router.push("/auth/login")
+        return
       } else {
         throw new Error("Failed to remove item")
       }

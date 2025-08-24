@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
+import { useAuth } from "@/lib/auth-context"
 
 interface CartItem {
   id: string
@@ -35,39 +36,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const [cartItems, setCartItems] = useState<CartItem[]>([])
   const [cartCount, setCartCount] = useState(0)
   const [loading, setLoading] = useState(false)
-  const [user, setUser] = useState<any>(null)
+  const { user } = useAuth()
   const { toast } = useToast()
 
   useEffect(() => {
-    const getSession = async () => {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-      setUser(session?.user || null)
-
-      if (session?.user) {
-        await refreshCart()
-        setupRealtimeSubscription(session.user.id)
-      }
+    if (user) {
+      refreshCart()
+      setupRealtimeSubscription(user.id)
+    } else {
+      setCartItems([])
+      setCartCount(0)
     }
-
-    getSession()
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange(async (event, session) => {
-      setUser(session?.user || null)
-      if (session?.user) {
-        await refreshCart()
-        setupRealtimeSubscription(session.user.id)
-      } else {
-        setCartItems([])
-        setCartCount(0)
-      }
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  }, [user])
 
   const setupRealtimeSubscription = useCallback((userId: string) => {
     const channel = supabase
@@ -77,7 +57,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         {
           event: "*",
           schema: "public",
-          table: "cart_items",
+          table: "cart",
           filter: `user_id=eq.${userId}`,
         },
         () => {
@@ -97,7 +77,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
     setLoading(true)
     try {
-      const response = await fetch(`/api/cart?userId=${user.id}`)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
+      const response = await fetch("/api/cart", {
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
+        },
+        credentials: "include",
+      })
       if (response.ok) {
         const data = await response.json()
         setCartItems(data)
@@ -124,11 +116,20 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCartCount((prev) => prev + quantity)
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       const response = await fetch("/api/cart", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
+        },
+        credentials: "include",
         body: JSON.stringify({
-          user_id: user.id,
           product_id: productId,
           quantity,
           size,
@@ -168,9 +169,19 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       const response = await fetch(`/api/cart/${itemId}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
+        },
+        credentials: "include",
         body: JSON.stringify({ quantity: newQuantity }),
       })
 
@@ -208,8 +219,18 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
 
     try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       const response = await fetch(`/api/cart/${itemId}`, {
         method: "DELETE",
+        headers: {
+          ...(session?.access_token && {
+            Authorization: `Bearer ${session.access_token}`,
+          }),
+        },
+        credentials: "include",
       })
 
       if (response.ok) {
@@ -244,7 +265,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     setCartCount(0)
 
     try {
-      const { error } = await supabase.from("cart_items").delete().eq("user_id", user.id)
+      const { error } = await supabase.from("cart").delete().eq("user_id", user.id)
 
       if (error) throw error
 
