@@ -1,5 +1,4 @@
 import { createBrowserClient, createServerClient } from "@supabase/ssr"
-import { cookies } from "next/headers"
 
 // Environment variables with fallbacks for build time
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -52,6 +51,7 @@ export function createClient() {
 
 // Server-side Supabase client that reads user sessions from cookies
 export function createSupabaseServerClient() {
+  const { cookies } = require("next/headers")
   const cookieStore = cookies()
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
