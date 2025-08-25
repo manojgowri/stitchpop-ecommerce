@@ -1,6 +1,59 @@
 import { type NextRequest, NextResponse } from "next/server"
 import { createSupabaseServerClient, createServiceRoleClient } from "@/lib/supabase"
 
+async function authenticateUser(request: NextRequest) {
+  const authHeader = request.headers.get("authorization")
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    // Extract token from Authorization header
+    const token = authHeader.substring(7)
+    const supabase = createSupabaseServerClient()
+
+    try {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token)
+      if (error || !user) {
+        return { user: null, error: "Invalid token" }
+      }
+      return { user, error: null }
+    } catch (error) {
+      return { user: null, error: "Token validation failed" }
+    }
+  }
+
+  // Fallback to cookie-based authentication
+  const supabase = createSupabaseServerClient()
+  const {
+    data: { user },
+    error,
+  } = await supabase.auth.getUser()
+
+  if (error || !user) {
+    return { user: null, error: "Unauthorized" }
+  }
+
+  return { user, error: null }
+}
+
+async function checkAdminRole(userId: string) {
+  const supabase = createServiceRoleClient()
+
+  try {
+    const { data: profile, error } = await supabase.from("profiles").select("role").eq("id", userId).single()
+
+    if (error || !profile) {
+      return false
+    }
+
+    return profile.role === "admin"
+  } catch (error) {
+    console.error("[v0] Error checking admin role:", error)
+    return false
+  }
+}
+
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
@@ -39,18 +92,13 @@ export async function GET(request: NextRequest) {
     }
 
     if (adminView) {
-      const authSupabase = createSupabaseServerClient()
-      const {
-        data: { user },
-        error: authError,
-      } = await authSupabase.auth.getUser()
+      const { user, error: authError } = await authenticateUser(request)
 
       if (authError || !user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
       }
 
-      // Check if user is admin
-      const isAdmin = user.user_metadata?.is_admin || user.email === "stitchpopclothing@gmail.com"
+      const isAdmin = await checkAdminRole(user.id)
 
       if (!isAdmin) {
         return NextResponse.json({ error: "Forbidden" }, { status: 403 })
@@ -94,28 +142,20 @@ export async function POST(request: NextRequest) {
   try {
     console.log("[v0] POST request started")
 
-    const supabase = createSupabaseServerClient()
-    console.log("[v0] Supabase client created")
-
-    const {
-      data: { user },
-      error: authError,
-    } = await supabase.auth.getUser()
+    const { user, error: authError } = await authenticateUser(request)
 
     console.log("[v0] Auth check result:", {
       hasUser: !!user,
       userEmail: user?.email,
-      authError: authError?.message,
-      userMetadata: user?.user_metadata,
+      authError,
     })
 
     if (authError || !user) {
-      console.log("[v0] Authentication failed:", authError?.message || "Auth session missing!")
+      console.log("[v0] Authentication failed:", authError || "Auth session missing!")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    // Check if user is admin
-    const isAdmin = user.user_metadata?.is_admin || user.email === "stitchpopclothing@gmail.com"
+    const isAdmin = await checkAdminRole(user.id)
 
     if (!isAdmin) {
       console.log("[v0] User is not admin:", user.email)
@@ -184,6 +224,42 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(coupon, { status: 201 })
   } catch (error) {
     console.error("Error creating coupon:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { user, error: authError } = await authenticateUser(request)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const isAdmin = await checkAdminRole(user.id)
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const couponId = searchParams.get("id")
+
+    if (!couponId) {
+      return NextResponse.json({ error: "Coupon ID required" }, { status: 400 })
+    }
+
+    const supabase = createServiceRoleClient()
+    const { error } = await supabase.from("coupons").delete().eq("id", couponId)
+
+    if (error) {
+      console.error("[v0] Error deleting coupon:", error)
+      return NextResponse.json({ error: "Failed to delete coupon" }, { status: 500 })
+    }
+
+    return NextResponse.json({ message: "Coupon deleted successfully" })
+  } catch (error) {
+    console.error("Error deleting coupon:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }

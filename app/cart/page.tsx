@@ -11,6 +11,7 @@ import { Separator } from "@/components/ui/separator"
 import { Minus, Plus, Trash2, ShoppingBag, Tag } from "lucide-react"
 import { supabase } from "@/lib/supabase"
 import { useToast } from "@/hooks/use-toast"
+import { fetchWithAuth } from "@/lib/fetch-with-auth"
 
 interface CartItem {
   id: string
@@ -63,37 +64,15 @@ export default function CartPage() {
 
   const fetchCartItems = async () => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      const response = await fetch("/api/cart", {
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.access_token && {
-            Authorization: `Bearer ${session.access_token}`,
-          }),
-        },
-      })
-
-      if (response.ok) {
-        const data = await response.json()
-        setCartItems(data)
-      } else if (response.status === 401) {
+      const data = await fetchWithAuth("/api/cart")
+      setCartItems(data)
+    } catch (error: any) {
+      console.error("Error fetching cart items:", error)
+      if (error.message.includes("not authenticated")) {
         console.error("Authentication failed, redirecting to login")
         router.push("/auth/login")
         return
-      } else {
-        console.error("Failed to fetch cart items")
-        toast({
-          title: "Error",
-          description: "Failed to load cart items",
-          variant: "destructive",
-        })
       }
-    } catch (error) {
-      console.error("Error fetching cart items:", error)
       toast({
         title: "Error",
         description: "Failed to load cart items",
@@ -108,38 +87,22 @@ export default function CartPage() {
     if (newQuantity < 1) return
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      const response = await fetch(`/api/cart/${itemId}`, {
+      await fetchWithAuth(`/api/cart/${itemId}`, {
         method: "PUT",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          ...(session?.access_token && {
-            Authorization: `Bearer ${session.access_token}`,
-          }),
-        },
-        body: JSON.stringify({
-          quantity: newQuantity,
-        }),
+        body: { quantity: newQuantity },
       })
 
-      if (response.ok) {
-        setCartItems((items) => items.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item)))
-        toast({
-          title: "Success",
-          description: "Quantity updated",
-        })
-      } else if (response.status === 401) {
+      setCartItems((items) => items.map((item) => (item.id === itemId ? { ...item, quantity: newQuantity } : item)))
+      toast({
+        title: "Success",
+        description: "Quantity updated",
+      })
+    } catch (error: any) {
+      console.error("Error updating quantity:", error)
+      if (error.message.includes("not authenticated")) {
         router.push("/auth/login")
         return
-      } else {
-        throw new Error("Failed to update quantity")
       }
-    } catch (error) {
-      console.error("Error updating quantity:", error)
       toast({
         title: "Error",
         description: "Failed to update quantity",
@@ -150,34 +113,19 @@ export default function CartPage() {
 
   const removeItem = async (itemId: string) => {
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
+      await fetchWithAuth(`/api/cart/${itemId}`, { method: "DELETE" })
 
-      const response = await fetch(`/api/cart/${itemId}`, {
-        method: "DELETE",
-        credentials: "include",
-        headers: {
-          ...(session?.access_token && {
-            Authorization: `Bearer ${session.access_token}`,
-          }),
-        },
+      setCartItems((items) => items.filter((item) => item.id !== itemId))
+      toast({
+        title: "Success",
+        description: "Item removed from cart",
       })
-
-      if (response.ok) {
-        setCartItems((items) => items.filter((item) => item.id !== itemId))
-        toast({
-          title: "Success",
-          description: "Item removed from cart",
-        })
-      } else if (response.status === 401) {
+    } catch (error: any) {
+      console.error("Error removing item:", error)
+      if (error.message.includes("not authenticated")) {
         router.push("/auth/login")
         return
-      } else {
-        throw new Error("Failed to remove item")
       }
-    } catch (error) {
-      console.error("Error removing item:", error)
       toast({
         title: "Error",
         description: "Failed to remove item",

@@ -22,6 +22,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Copy } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
+import { fetchWithAuth } from "@/lib/fetch-with-auth"
 
 interface Coupon {
   id: string
@@ -64,11 +65,8 @@ export default function CouponsPage() {
 
   const fetchCoupons = async () => {
     try {
-      const response = await fetch("/api/coupons?admin=true")
-      if (response.ok) {
-        const data = await response.json()
-        setCoupons(data)
-      }
+      const data = await fetchWithAuth("/api/coupons?admin=true")
+      setCoupons(data)
     } catch (error) {
       console.error("Error fetching coupons:", error)
       toast({
@@ -104,30 +102,19 @@ export default function CouponsPage() {
 
       console.log("[v0] Making request to:", url, "with method:", method)
 
-      const response = await fetch(url, {
+      const result = await fetchWithAuth(url, {
         method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(processedData),
+        body: processedData,
       })
 
-      console.log("[v0] Response status:", response.status)
-      console.log("[v0] Response ok:", response.ok)
-
-      if (response.ok) {
-        const result = await response.json()
-        console.log("[v0] Success result:", result)
-        toast({
-          title: "Success",
-          description: `Coupon ${editingCoupon ? "updated" : "created"} successfully`,
-        })
-        setIsDialogOpen(false)
-        resetForm()
-        fetchCoupons()
-      } else {
-        const error = await response.json()
-        console.log("[v0] Error response:", error)
-        throw new Error(error.error)
-      }
+      console.log("[v0] Success result:", result)
+      toast({
+        title: "Success",
+        description: `Coupon ${editingCoupon ? "updated" : "created"} successfully`,
+      })
+      setIsDialogOpen(false)
+      resetForm()
+      fetchCoupons()
     } catch (error: any) {
       console.log("[v0] Catch block error:", error)
       toast({
@@ -158,14 +145,12 @@ export default function CouponsPage() {
     if (!confirm("Are you sure you want to delete this coupon?")) return
 
     try {
-      const response = await fetch(`/api/coupons/${id}`, { method: "DELETE" })
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Coupon deleted successfully",
-        })
-        fetchCoupons()
-      }
+      await fetchWithAuth(`/api/coupons?id=${id}`, { method: "DELETE" })
+      toast({
+        title: "Success",
+        description: "Coupon deleted successfully",
+      })
+      fetchCoupons()
     } catch (error) {
       toast({
         title: "Error",
