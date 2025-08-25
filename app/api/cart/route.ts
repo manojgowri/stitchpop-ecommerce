@@ -25,7 +25,7 @@ function validateJWTToken(token: string): { valid: boolean; payload?: any } {
 }
 
 async function authenticateUser(request: NextRequest) {
-  const supabase = createSupabaseServerClient()
+  const supabase = await createSupabaseServerClient()
 
   // First, check for Authorization header with Bearer token
   const authHeader = request.headers.get("authorization")
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
     console.log("[v0] Cart GET: User authenticated:", user.email)
 
     try {
-      const supabase = createSupabaseServerClient()
+      const supabase = await createSupabaseServerClient()
       const { data: cartItems, error } = await supabase
         .from("cart")
         .select(`
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     console.log("[v0] Cart POST: User authenticated:", user.email)
 
     try {
-      const supabase = createSupabaseServerClient()
+      const supabase = await createSupabaseServerClient()
       const body = await request.json()
       const { product_id, quantity = 1, size, color } = body
 
@@ -238,7 +238,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     try {
-      const supabase = createSupabaseServerClient()
+      const supabase = await createSupabaseServerClient()
       const { error } = await supabase.from("cart").delete().eq("id", cartItemId).eq("user_id", user.id)
 
       if (error) {

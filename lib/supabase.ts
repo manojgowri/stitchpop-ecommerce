@@ -50,8 +50,8 @@ export function createClient() {
 }
 
 // Server-side Supabase client that reads user sessions from cookies
-export function createSupabaseServerClient() {
-  const { cookies } = require("next/headers")
+export async function createSupabaseServerClient() {
+  const { cookies } = await import("next/headers")
   const cookieStore = cookies()
 
   return createServerClient(supabaseUrl, supabaseAnonKey, {
