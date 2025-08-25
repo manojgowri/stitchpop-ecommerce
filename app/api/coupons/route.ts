@@ -1,30 +1,10 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createSupabaseServerClient, createServiceRoleClient } from "@/lib/supabase"
+import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
+import { cookies } from "next/headers"
 
 async function authenticateUser(request: NextRequest) {
-  const authHeader = request.headers.get("authorization")
+  const supabase = createRouteHandlerClient({ cookies })
 
-  if (authHeader && authHeader.startsWith("Bearer ")) {
-    // Extract token from Authorization header
-    const token = authHeader.substring(7)
-    const supabase = createSupabaseServerClient()
-
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser(token)
-      if (error || !user) {
-        return { user: null, error: "Invalid token" }
-      }
-      return { user, error: null }
-    } catch (error) {
-      return { user: null, error: "Token validation failed" }
-    }
-  }
-
-  // Fallback to cookie-based authentication
-  const supabase = createSupabaseServerClient()
   const {
     data: { user },
     error,
@@ -38,16 +18,17 @@ async function authenticateUser(request: NextRequest) {
 }
 
 async function checkAdminRole(userId: string) {
-  const supabase = createServiceRoleClient()
+  const supabase = createRouteHandlerClient({ cookies })
 
   try {
-    const { data: profile, error } = await supabase.from("profiles").select("role").eq("id", userId).single()
+    const { data: userData, error } = await supabase.from("users").select("is_admin").eq("id", userId).single()
 
-    if (error || !profile) {
+    if (error || !userData) {
+      console.error("[v0] Error checking admin role:", error)
       return false
     }
 
-    return profile.role === "admin"
+    return userData.is_admin === true
   } catch (error) {
     console.error("[v0] Error checking admin role:", error)
     return false
@@ -60,10 +41,10 @@ export async function GET(request: NextRequest) {
     const code = searchParams.get("code")
     const adminView = searchParams.get("admin") === "true"
 
-    const supabase = adminView ? createServiceRoleClient() : createSupabaseServerClient()
+    const supabase = createRouteHandlerClient({ cookies })
 
     if (code) {
-      // Validate specific coupon
+      // Public coupon validation - no auth required
       const { data: coupon, error } = await supabase
         .from("coupons")
         .select("*")
@@ -91,17 +72,18 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(coupon)
     }
 
+    const { user, error: authError } = await authenticateUser(request)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const isAdmin = await checkAdminRole(user.id)
+
     if (adminView) {
-      const { user, error: authError } = await authenticateUser(request)
-
-      if (authError || !user) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
-      }
-
-      const isAdmin = await checkAdminRole(user.id)
-
+      // Admin view requires admin role
       if (!isAdmin) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+        return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
       }
 
       // Admin view - get all coupons
@@ -118,7 +100,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json(coupons)
     }
 
-    // Public view - get active coupons only
+    // Regular user view - get active coupons only (both admin and non-admin can view)
     const { data: coupons, error } = await supabase
       .from("coupons")
       .select("code, description, discount_type, discount_value, minimum_order_amount")
@@ -140,30 +122,19 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    console.log("[v0] POST request started")
-
     const { user, error: authError } = await authenticateUser(request)
 
-    console.log("[v0] Auth check result:", {
-      hasUser: !!user,
-      userEmail: user?.email,
-      authError,
-    })
-
     if (authError || !user) {
-      console.log("[v0] Authentication failed:", authError || "Auth session missing!")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
     const isAdmin = await checkAdminRole(user.id)
 
     if (!isAdmin) {
-      console.log("[v0] User is not admin:", user.email)
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
     }
 
     const body = await request.json()
-    console.log("[v0] API received body:", body)
 
     const {
       code,
@@ -177,20 +148,7 @@ export async function POST(request: NextRequest) {
       expiry_date,
     } = body
 
-    console.log("[v0] Extracted fields:", {
-      code,
-      description,
-      discount_type,
-      discount_value,
-      minimum_order_amount,
-      maximum_discount_amount,
-      usage_limit,
-      valid_from,
-      expiry_date,
-    })
-
     if (!code || !discount_type || !discount_value || !valid_from || !expiry_date) {
-      console.log("[v0] Missing required fields validation failed")
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 })
     }
 
@@ -206,15 +164,11 @@ export async function POST(request: NextRequest) {
       expiry_date,
     }
 
-    console.log("[v0] Data to insert:", insertData)
-
-    const adminSupabase = createServiceRoleClient()
-    const { data: coupon, error } = await adminSupabase.from("coupons").insert([insertData]).select().single()
-
-    console.log("[v0] Supabase insert result:", { coupon, error })
+    const supabase = createRouteHandlerClient({ cookies })
+    const { data: coupon, error } = await supabase.from("coupons").insert([insertData]).select().single()
 
     if (error) {
-      console.log("[v0] Supabase error details:", error)
+      console.error("[v0] Error creating coupon:", error)
       if (error.code === "23505") {
         return NextResponse.json({ error: "Coupon code already exists" }, { status: 409 })
       }
@@ -224,6 +178,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(coupon, { status: 201 })
   } catch (error) {
     console.error("Error creating coupon:", error)
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const { user, error: authError } = await authenticateUser(request)
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    }
+
+    const isAdmin = await checkAdminRole(user.id)
+
+    if (!isAdmin) {
+      return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
+    }
+
+    const { searchParams } = new URL(request.url)
+    const couponId = searchParams.get("id")
+
+    if (!couponId) {
+      return NextResponse.json({ error: "Coupon ID required" }, { status: 400 })
+    }
+
+    const body = await request.json()
+    const supabase = createRouteHandlerClient({ cookies })
+
+    const { data: coupon, error } = await supabase.from("coupons").update(body).eq("id", couponId).select().single()
+
+    if (error) {
+      console.error("[v0] Error updating coupon:", error)
+      return NextResponse.json({ error: "Failed to update coupon" }, { status: 500 })
+    }
+
+    return NextResponse.json(coupon)
+  } catch (error) {
+    console.error("Error updating coupon:", error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
@@ -249,7 +241,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Coupon ID required" }, { status: 400 })
     }
 
-    const supabase = createServiceRoleClient()
+    const supabase = createRouteHandlerClient({ cookies })
     const { error } = await supabase.from("coupons").delete().eq("id", couponId)
 
     if (error) {
