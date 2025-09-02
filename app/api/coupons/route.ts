@@ -5,6 +5,24 @@ import { cookies } from "next/headers"
 async function authenticateUser(request: NextRequest) {
   const supabase = createRouteHandlerClient({ cookies })
 
+  const authHeader = request.headers.get("authorization")
+
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7)
+    try {
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser(token)
+      if (user && !error) {
+        return { user, error: null }
+      }
+    } catch (error) {
+      console.error("[v0] Bearer token authentication failed:", error)
+    }
+  }
+
+  // Fall back to cookie-based authentication
   const {
     data: { user },
     error,
@@ -17,11 +35,11 @@ async function authenticateUser(request: NextRequest) {
   return { user, error: null }
 }
 
-async function checkAdminRole(userId: string) {
+async function checkAdminRole(user: any) {
   const supabase = createRouteHandlerClient({ cookies })
 
   try {
-    const { data: userData, error } = await supabase.from("users").select("is_admin").eq("id", userId).single()
+    const { data: userData, error } = await supabase.from("users").select("is_admin").eq("email", user.email).single()
 
     if (error || !userData) {
       console.error("[v0] Error checking admin role:", error)
@@ -78,7 +96,7 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const isAdmin = await checkAdminRole(user.id)
+    const isAdmin = await checkAdminRole(user)
 
     if (adminView) {
       // Admin view requires admin role
@@ -128,7 +146,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const isAdmin = await checkAdminRole(user.id)
+    const isAdmin = await checkAdminRole(user)
 
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
@@ -190,7 +208,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const isAdmin = await checkAdminRole(user.id)
+    const isAdmin = await checkAdminRole(user)
 
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
@@ -228,7 +246,7 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const isAdmin = await checkAdminRole(user.id)
+    const isAdmin = await checkAdminRole(user)
 
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
