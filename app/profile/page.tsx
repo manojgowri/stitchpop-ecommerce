@@ -32,6 +32,8 @@ interface UserStats {
   reviewsCount: number
 }
 
+const isPreviewHost = () => typeof window !== "undefined" && window.location.hostname.includes("vusercontent.net")
+
 export default function ProfilePage() {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<UserProfile | null>(null)
@@ -53,17 +55,51 @@ export default function ProfilePage() {
   const { toast } = useToast()
 
   useEffect(() => {
-    checkUser()
+    let unsub: { subscription?: { unsubscribe?: () => void } } | null = null
+
+    const init = async () => {
+      // initial check but don't hard-redirect on preview host to avoid loops
+      await checkUser(true)
+
+      const { data } = await supabase.auth.onAuthStateChange(async (event, session) => {
+        // console.log("[v0] profile auth state:", event, session?.user?.email)
+        if (session?.user) {
+          setUser(session.user)
+          // refetch profile and stats when signed in or refreshed
+          try {
+            // reuse existing logic by calling checkUser without redirect
+            await checkUser(true)
+          } catch {}
+        } else {
+          setUser(null)
+          setProfile(null)
+          if (!isPreviewHost()) {
+            router.replace("/auth/login")
+          }
+        }
+      })
+      unsub = data
+    }
+
+    init()
+
+    return () => {
+      unsub?.subscription?.unsubscribe?.()
+    }
   }, [])
 
-  const checkUser = async () => {
+  const checkUser = async (initial = false) => {
     try {
       const {
         data: { session },
       } = await supabase.auth.getSession()
 
       if (!session?.user) {
-        router.push("/auth/login")
+        if (!isPreviewHost()) {
+          // avoid double navigation on first paint
+          if (!initial) router.replace("/auth/login")
+        }
+        setLoading(false)
         return
       }
 
@@ -77,24 +113,21 @@ export default function ProfilePage() {
         .single()
 
       if (error) {
-        console.error("Error fetching profile:", error)
         // Create profile if it doesn't exist
-        const { data: newProfile, error: createError } = await supabase
+        const { data: newProfile } = await supabase
           .from("users")
           .insert([
             {
               id: session.user.id,
               email: session.user.email,
-              name: session.user.user_metadata?.name || session.user.email?.split("@")[0] || "User",
+              name: (session.user.user_metadata as any)?.name || session.user.email?.split("@")[0] || "User",
               is_admin: false,
             },
           ])
           .select()
           .single()
 
-        if (createError) {
-          console.error("Error creating profile:", createError)
-        } else {
+        if (newProfile) {
           setProfile(newProfile)
           setFormData({
             name: newProfile.name || "",
@@ -223,11 +256,29 @@ export default function ProfilePage() {
     )
   }
 
+  if (!loading && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-white">
+        <div className="text-center space-y-4">
+          <h2 className="text-2xl font-bold text-gray-900">You’re not signed in</h2>
+          <p className="text-gray-600">Please sign in to view your profile.</p>
+          <Button
+            onClick={() => router.push("/auth/login")}
+            size="lg"
+            className="bg-gray-800 text-white hover:bg-gray-700"
+          >
+            Go to Sign In
+          </Button>
+        </div>
+      </div>
+    )
+  }
+
   if (!profile) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
         <div className="text-center">
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">Profile not found</h2>
+          <h2 className="text-2xl font-bold mb-2 text-gray-900">Profile not found</h2>
           <Button onClick={() => router.push("/")} size="lg" className="bg-gray-800 text-white hover:bg-gray-700">
             Go Home
           </Button>
