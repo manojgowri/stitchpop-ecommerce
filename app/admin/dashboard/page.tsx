@@ -1125,6 +1125,47 @@ export default function AdminDashboard() {
                       </div>
                     </div>
 
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <Label htmlFor="original_price">Original Price (₹)</Label>
+                        <Input
+                          id="original_price"
+                          type="number"
+                          step="0.01"
+                          placeholder="999.00"
+                          value={newProduct.original_price}
+                          onChange={(e) => setNewProduct({ ...newProduct, original_price: e.target.value })}
+                          required
+                        />
+                      </div>
+                      <div>
+                        <Label htmlFor="discounted_price">Discounted Price (₹) - Optional</Label>
+                        <Input
+                          id="discounted_price"
+                          type="number"
+                          step="0.01"
+                          placeholder="799.00"
+                          value={newProduct.price}
+                          onChange={(e) => setNewProduct({ ...newProduct, price: e.target.value })}
+                        />
+                        <p className="text-xs text-gray-600 mt-1">
+                          Leave empty if not on sale. Product will use original price.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label htmlFor="stock">Stock Quantity</Label>
+                      <Input
+                        id="stock"
+                        type="number"
+                        placeholder="100"
+                        value={newProduct.stock}
+                        onChange={(e) => setNewProduct({ ...newProduct, stock: e.target.value })}
+                        required
+                      />
+                    </div>
+
                     {/* Image Upload Section */}
                     <div className="space-y-4">
                       <Label>Product Images</Label>

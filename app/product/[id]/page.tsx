@@ -378,16 +378,15 @@ export default function ProductPage() {
                 <span className="text-gray-600">({product.rating}) • 127 reviews</span>
               </div>
               <div className="flex items-center space-x-4 mb-6">
-                <span className="text-3xl font-bold text-gray-900">₹{product.price.toLocaleString()}</span>
-                {product.original_price && product.is_on_sale && (
+                {product.is_on_sale && product.original_price ? (
                   <>
+                    <span className="text-3xl font-bold text-red-600">₹{product.price.toLocaleString()}</span>
                     <span className="text-xl text-gray-500 line-through">
                       ₹{product.original_price.toLocaleString()}
                     </span>
-                    <Badge className="bg-red-500">
-                      {Math.round(((product.original_price - product.price) / product.original_price) * 100)}% OFF
-                    </Badge>
                   </>
+                ) : (
+                  <span className="text-3xl font-bold text-gray-900">₹{product.price.toLocaleString()}</span>
                 )}
               </div>
             </div>
@@ -403,26 +402,6 @@ export default function ProductPage() {
 
               <TabsContent value="description" className="space-y-4">
                 <p className="text-gray-700 leading-relaxed">{product.description}</p>
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Category:</span>
-                    <span className="ml-2 capitalize">{product.categories?.name}</span>
-                  </div>
-                  <div>
-                    <span className="font-medium">Gender:</span>
-                    <span className="ml-2 capitalize">{product.gender}</span>
-                  </div>
-                  {product.themes?.name && (
-                    <div>
-                      <span className="font-medium">Collection:</span>
-                      <span className="ml-2">{product.themes.name}</span>
-                    </div>
-                  )}
-                  <div>
-                    <span className="font-medium">Stock:</span>
-                    <span className="ml-2">{product.stock} available</span>
-                  </div>
-                </div>
               </TabsContent>
 
               <TabsContent value="fabric" className="space-y-4">
@@ -590,8 +569,8 @@ export default function ProductPage() {
             </div>
 
             {product.stock <= 5 && product.stock > 0 && (
-              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-                <p className="text-orange-800 font-medium">Only {product.stock} left in stock - order soon!</p>
+              <div className="bg-orange-50 border border-orange-200 rounded-lg p-4 mb-4">
+                <p className="text-orange-800 font-medium">Grab before it's gone</p>
               </div>
             )}
 

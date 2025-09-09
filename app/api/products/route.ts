@@ -92,7 +92,25 @@ export async function POST(request: Request) {
   try {
     const body = await request.json()
 
-    const { data, error } = await supabase.from("products").insert([body]).select().single()
+    const { original_price, discounted_price, ...otherData } = body
+
+    const productData = {
+      ...otherData,
+      original_price: original_price ? Number.parseFloat(original_price) : null,
+    }
+
+    // Apply pricing logic
+    if (original_price && discounted_price) {
+      // Both prices provided - product is on sale
+      productData.price = Number.parseFloat(discounted_price)
+      productData.is_on_sale = true
+    } else if (original_price) {
+      // Only original price provided - regular price
+      productData.price = Number.parseFloat(original_price)
+      productData.is_on_sale = false
+    }
+
+    const { data, error } = await supabase.from("products").insert([productData]).select().single()
 
     if (error) {
       console.error("Supabase error:", error)
