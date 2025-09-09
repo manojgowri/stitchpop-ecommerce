@@ -129,19 +129,14 @@ export default function HomePage() {
       <section className="relative min-h-screen flex items-center justify-center bg-gradient-to-br from-black via-gray-900 to-gray-800 w-full">
         <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-gray-900/60 to-gray-800/80" />
         <div className="relative z-10 text-center text-white max-w-6xl px-4 sm:px-6 lg:px-8 w-full">
-          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent leading-tight">
-            Premium hoodies
-          </h1>
-          <p className="text-lg sm:text-xl lg:text-2xl mb-8 text-gray-300 max-w-4xl mx-auto leading-relaxed">
+          <h1 className="text-4xl sm:text-5xl lg:text-7xl font-bold mb-6 text-white leading-tight">Premium hoodies</h1>
+          <p className="text-lg sm:text-xl lg:text-2xl mb-8 text-gray-100 max-w-4xl mx-auto leading-relaxed">
             Discover our exclusive collection of premium fashion pieces crafted for the modern connoisseur
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-            <Button
-              size="lg"
-              className="bg-gradient-to-r from-white to-gray-100 text-black hover:from-gray-100 hover:to-gray-200 w-full sm:w-auto"
-            >
-              <Link href="/categories" className="inline-flex items-center justify-center w-full">
+            <Button size="lg" className="bg-white text-black hover:bg-gray-100 hover:text-black w-full sm:w-auto">
+              <Link href="/categories" className="inline-flex items-center justify-center w-full text-black">
                 EXPLORE COLLECTION
                 <ArrowRight className="ml-2 h-4 w-4" />
               </Link>

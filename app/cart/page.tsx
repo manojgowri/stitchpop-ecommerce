@@ -41,6 +41,8 @@ export default function CartPage() {
   const [couponCode, setCouponCode] = useState("")
   const [appliedCoupon, setAppliedCoupon] = useState<Coupon | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
+  const [availableCoupons, setAvailableCoupons] = useState<Coupon[]>([])
+  const [showCoupons, setShowCoupons] = useState(false)
   const router = useRouter()
   const { toast } = useToast()
 
@@ -57,10 +59,20 @@ export default function CartPage() {
 
       setUser(session.user)
       await fetchCartItems()
+      await fetchAvailableCoupons()
     }
 
     checkUserAndFetchCart()
   }, [router])
+
+  const fetchAvailableCoupons = async () => {
+    try {
+      const data = await fetchWithAuth("/api/coupons")
+      setAvailableCoupons(data)
+    } catch (error) {
+      console.error("Error fetching available coupons:", error)
+    }
+  }
 
   const fetchCartItems = async () => {
     try {
@@ -134,18 +146,18 @@ export default function CartPage() {
     }
   }
 
-  const applyCoupon = async () => {
-    if (!couponCode.trim()) return
+  const applyCoupon = async (couponToApply?: Coupon) => {
+    const codeToApply = couponToApply ? couponToApply.code : couponCode.trim()
+    if (!codeToApply) return
 
     setCouponLoading(true)
     try {
-      const response = await fetch(`/api/coupons?code=${couponCode.toUpperCase()}`)
+      const response = await fetch(`/api/coupons?code=${codeToApply.toUpperCase()}`)
 
       if (response.ok) {
         const coupon = await response.json()
         const subtotal = calculateSubtotal()
 
-        // Check minimum order amount
         if (coupon.minimum_order_amount > subtotal) {
           toast({
             title: "Invalid Coupon",
@@ -156,6 +168,8 @@ export default function CartPage() {
         }
 
         setAppliedCoupon(coupon)
+        setCouponCode(coupon.code)
+        setShowCoupons(false)
         toast({
           title: "Coupon Applied",
           description: `${coupon.description}`,
@@ -204,12 +218,11 @@ export default function CartPage() {
       discount = appliedCoupon.discount_value
     }
 
-    // Apply maximum discount limit if specified
     if (appliedCoupon.maximum_discount_amount && discount > appliedCoupon.maximum_discount_amount) {
       discount = appliedCoupon.maximum_discount_amount
     }
 
-    return Math.min(discount, subtotal) // Don't let discount exceed subtotal
+    return Math.min(discount, subtotal)
   }
 
   const calculateTotal = () => {
@@ -319,13 +332,66 @@ export default function CartPage() {
                     />
                     <Button
                       variant="outline"
-                      onClick={applyCoupon}
+                      onClick={() => applyCoupon()}
                       disabled={couponLoading || !!appliedCoupon || !couponCode.trim()}
                     >
                       <Tag className="h-4 w-4 mr-1" />
                       Apply
                     </Button>
                   </div>
+
+                  {!appliedCoupon && availableCoupons.length > 0 && (
+                    <div className="mt-3">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setShowCoupons(!showCoupons)}
+                        className="text-blue-600 hover:text-blue-700 p-0 h-auto"
+                      >
+                        {showCoupons ? "Hide" : "View"} available coupons ({availableCoupons.length})
+                      </Button>
+
+                      {showCoupons && (
+                        <div className="mt-2 space-y-2 max-h-40 overflow-y-auto">
+                          {availableCoupons.map((coupon) => {
+                            const subtotal = calculateSubtotal()
+                            const isEligible = subtotal >= coupon.minimum_order_amount
+
+                            return (
+                              <div
+                                key={coupon.id}
+                                className={`p-3 border rounded-lg cursor-pointer transition-colors ${
+                                  isEligible
+                                    ? "border-green-200 bg-green-50 hover:bg-green-100"
+                                    : "border-gray-200 bg-gray-50 opacity-60"
+                                }`}
+                                onClick={() => isEligible && applyCoupon(coupon)}
+                              >
+                                <div className="flex justify-between items-start">
+                                  <div>
+                                    <p className="font-medium text-sm">{coupon.code}</p>
+                                    <p className="text-xs text-gray-600">{coupon.description}</p>
+                                    {!isEligible && (
+                                      <p className="text-xs text-red-500 mt-1">
+                                        Min. order: ₹{coupon.minimum_order_amount}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-sm font-medium text-green-600">
+                                      {coupon.discount_type === "percentage"
+                                        ? `${coupon.discount_value}% OFF`
+                                        : `₹${coupon.discount_value} OFF`}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
 
                   {appliedCoupon && (
                     <div className="mt-2 p-2 bg-green-50 border border-green-200 rounded-md">

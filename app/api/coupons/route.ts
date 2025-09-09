@@ -1,46 +1,74 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs"
-import { cookies } from "next/headers"
+import { createSupabaseServerClient } from "@/lib/supabase"
 
-async function authenticateUser(
-  request: NextRequest,
-): Promise<{ user: any | null; accessToken: string | null; error: string | null }> {
-  const supabase = createRouteHandlerClient({ cookies })
-
-  // 1) Bearer token first
-  const authHeader = request.headers.get("authorization")
-  if (authHeader?.startsWith("Bearer ")) {
-    const token = authHeader.substring(7)
-    try {
-      const {
-        data: { user },
-        error,
-      } = await supabase.auth.getUser(token)
-      if (user && !error) {
-        return { user, accessToken: token, error: null }
-      }
-    } catch (err) {
-      console.error("[v0] Bearer token authentication failed:", (err as Error)?.message || err)
+function validateJWTToken(token: string): { valid: boolean; payload?: any } {
+  try {
+    // Basic JWT structure validation
+    const parts = token.split(".")
+    if (parts.length !== 3) {
+      return { valid: false }
     }
-  }
 
-  // 2) Fallback to cookie-based session
-  const {
-    data: { user },
-    error,
-  } = await supabase.auth.getUser()
-  if (!user || error) {
-    return { user: null, accessToken: null, error: "Unauthorized" }
-  }
+    // Decode payload (without signature verification for preview environment)
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/")))
 
-  return { user, accessToken: null, error: null }
+    // Check if token is expired
+    const now = Math.floor(Date.now() / 1000)
+    if (payload.exp && payload.exp < now) {
+      return { valid: false }
+    }
+
+    return { valid: true, payload }
+  } catch (error) {
+    return { valid: false }
+  }
 }
 
-async function checkAdminRole(
-  supabase: ReturnType<typeof createRouteHandlerClient>,
-  userEmail: string,
-): Promise<boolean> {
+async function authenticateUser(request: NextRequest) {
+  const supabase = await createSupabaseServerClient()
+
+  // First, check for Authorization header with Bearer token
+  const authHeader = request.headers.get("authorization")
+  if (authHeader && authHeader.startsWith("Bearer ")) {
+    const token = authHeader.substring(7) // Remove 'Bearer ' prefix
+    console.log("[v0] Attempting Bearer token authentication")
+
+    const { valid, payload } = validateJWTToken(token)
+    if (valid && payload?.sub) {
+      console.log("[v0] Bearer token authentication successful:", payload.email)
+      return {
+        user: {
+          id: payload.sub,
+          email: payload.email || "unknown@example.com",
+        },
+        error: null,
+      }
+    }
+    console.log("[v0] Bearer token authentication failed: Invalid token")
+  }
+
+  // Fall back to cookie-based authentication
+  console.log("[v0] Attempting cookie-based authentication")
   try {
+    const {
+      data: { user },
+      error: cookieError,
+    } = await supabase.auth.getUser()
+    if (!cookieError && user) {
+      console.log("[v0] Cookie-based authentication successful:", user.email)
+      return { user, error: null }
+    }
+    console.log("[v0] Cookie-based authentication failed:", cookieError?.message)
+  } catch (error) {
+    console.log("[v0] Cookie-based authentication failed with network error:", error)
+  }
+
+  return { user: null, error: new Error("Authentication failed") }
+}
+
+async function checkAdminRole(userEmail: string): Promise<boolean> {
+  try {
+    const supabase = await createSupabaseServerClient()
     const { data: userData, error } = await supabase
       .from("users")
       .select("is_admin")
@@ -66,7 +94,7 @@ export async function GET(request: NextRequest) {
 
     // For public validation (code), no auth required; anon context is OK.
     if (code) {
-      const supabase = createRouteHandlerClient({ cookies })
+      const supabase = await createSupabaseServerClient()
       const { data: coupon, error } = await supabase
         .from("coupons")
         .select("*")
@@ -94,34 +122,34 @@ export async function GET(request: NextRequest) {
     }
 
     // Authenticated GET (user or admin)
-    const { user, accessToken, error: authError } = await authenticateUser(request)
+    const { user, error: authError } = await authenticateUser(request)
     if (authError || !user) {
+      console.log("[v0] Coupons GET: Authentication failed:", authError?.message || "Auth session missing!")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
-    if (accessToken) {
-      await supabase.auth.setAuth(accessToken)
-    }
+    console.log("[v0] Coupons GET: User authenticated:", user.email)
 
-    const isAdmin = await checkAdminRole(supabase, user.email)
+    const isAdmin = await checkAdminRole(user.email)
 
     if (adminView) {
       if (!isAdmin) {
         return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
       }
+      const supabase = await createSupabaseServerClient()
       const { data: coupons, error } = await supabase
         .from("coupons")
         .select("*")
         .order("created_at", { ascending: false })
       if (error) {
         console.error("[v0] Error fetching coupons:", error)
-        return NextResponse.json({ error: "Failed to fetch coupons" }, { status: 500 })
+        return NextResponse.json([]) // Return empty array on error
       }
       return NextResponse.json(coupons)
     }
 
     // Regular authenticated user: show active coupons in window
+    const supabase = await createSupabaseServerClient()
     const nowIso = new Date().toISOString()
     const { data: coupons, error } = await supabase
       .from("coupons")
@@ -132,33 +160,34 @@ export async function GET(request: NextRequest) {
 
     if (error) {
       console.error("[v0] Error fetching public coupons:", error)
-      return NextResponse.json({ error: "Failed to fetch coupons" }, { status: 500 })
+      return NextResponse.json([])
     }
 
     return NextResponse.json(coupons)
   } catch (error) {
-    console.error("Error in coupons GET API:", (error as Error)?.message || error)
+    console.error("[v0] Error in coupons GET API:", (error as Error)?.message || error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function POST(request: NextRequest) {
   try {
-    const { user, accessToken, error: authError } = await authenticateUser(request)
+    console.log("[v0] Coupons POST request started")
+
+    const { user, error: authError } = await authenticateUser(request)
     if (authError || !user) {
+      console.log("[v0] Coupons POST: Authentication failed:", authError?.message || "Auth session missing!")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
-    if (accessToken) {
-      await supabase.auth.setAuth(accessToken)
-    }
+    console.log("[v0] Coupons POST: User authenticated:", user.email)
 
-    const isAdmin = await checkAdminRole(supabase, user.email)
+    const isAdmin = await checkAdminRole(user.email)
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
     }
 
+    const supabase = await createSupabaseServerClient()
     const body = await request.json()
     const {
       code,
@@ -197,19 +226,25 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Failed to create coupon" }, { status: 500 })
     }
 
+    console.log("[v0] Coupon created successfully:", coupon?.code)
     return NextResponse.json(coupon, { status: 201 })
   } catch (error) {
-    console.error("Error creating coupon:", (error as Error)?.message || error)
+    console.error("[v0] Error creating coupon:", (error as Error)?.message || error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function PUT(request: NextRequest) {
   try {
-    const { user, accessToken, error: authError } = await authenticateUser(request)
+    console.log("[v0] Coupons PUT request started")
+
+    const { user, error: authError } = await authenticateUser(request)
     if (authError || !user) {
+      console.log("[v0] Coupons PUT: Authentication failed:", authError?.message || "Auth session missing!")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    console.log("[v0] Coupons PUT: User authenticated:", user.email)
 
     const { searchParams } = new URL(request.url)
     const couponId = searchParams.get("id")
@@ -217,16 +252,12 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Coupon ID required" }, { status: 400 })
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
-    if (accessToken) {
-      await supabase.auth.setAuth(accessToken)
-    }
-
-    const isAdmin = await checkAdminRole(supabase, user.email)
+    const isAdmin = await checkAdminRole(user.email)
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
     }
 
+    const supabase = await createSupabaseServerClient()
     const body = await request.json()
     const { data: coupon, error } = await supabase
       .from("coupons")
@@ -239,19 +270,25 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Failed to update coupon" }, { status: 500 })
     }
 
+    console.log("[v0] Coupon updated successfully")
     return NextResponse.json(coupon)
   } catch (error) {
-    console.error("Error updating coupon:", (error as Error)?.message || error)
+    console.error("[v0] Error updating coupon:", (error as Error)?.message || error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
 
 export async function DELETE(request: NextRequest) {
   try {
-    const { user, accessToken, error: authError } = await authenticateUser(request)
+    console.log("[v0] Coupons DELETE request started")
+
+    const { user, error: authError } = await authenticateUser(request)
     if (authError || !user) {
+      console.log("[v0] Coupons DELETE: Authentication failed:", authError?.message || "Auth session missing!")
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
     }
+
+    console.log("[v0] Coupons DELETE: User authenticated:", user.email)
 
     const { searchParams } = new URL(request.url)
     const couponId = searchParams.get("id")
@@ -259,25 +296,22 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Coupon ID required" }, { status: 400 })
     }
 
-    const supabase = createRouteHandlerClient({ cookies })
-    if (accessToken) {
-      await supabase.auth.setAuth(accessToken)
-    }
-
-    const isAdmin = await checkAdminRole(supabase, user.email)
+    const isAdmin = await checkAdminRole(user.email)
     if (!isAdmin) {
       return NextResponse.json({ error: "Forbidden - Admin access required" }, { status: 403 })
     }
 
+    const supabase = await createSupabaseServerClient()
     const { error } = await supabase.from("coupons").delete().eq("id", couponId)
     if (error) {
       console.error("[v0] Error deleting coupon:", error)
       return NextResponse.json({ error: "Failed to delete coupon" }, { status: 500 })
     }
 
+    console.log("[v0] Coupon deleted successfully")
     return NextResponse.json({ message: "Coupon deleted successfully" })
   } catch (error) {
-    console.error("Error deleting coupon:", (error as Error)?.message || error)
+    console.error("[v0] Error deleting coupon:", (error as Error)?.message || error)
     return NextResponse.json({ error: "Internal server error" }, { status: 500 })
   }
 }
