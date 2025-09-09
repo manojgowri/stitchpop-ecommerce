@@ -32,6 +32,9 @@ interface Coupon {
   discount_value: number
   minimum_order_amount: number
   maximum_discount_amount?: number
+  is_active: boolean
+  valid_from: string
+  expiry_date: string
 }
 
 export default function CartPage() {
@@ -67,8 +70,30 @@ export default function CartPage() {
 
   const fetchAvailableCoupons = async () => {
     try {
-      const data = await fetchWithAuth("/api/coupons")
-      setAvailableCoupons(data)
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        return // Skip fetching coupons if not authenticated
+      }
+
+      const now = new Date().toISOString()
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/coupons?select=*&is_active=eq.true&valid_from=lte.${now}&expiry_date=gte.${now}&order=discount_value.desc`,
+        {
+          headers: {
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            authorization: `Bearer ${session.access_token}`,
+            "content-profile": "public",
+            "content-type": "application/json",
+          },
+        },
+      )
+
+      if (response.ok) {
+        const data = await response.json()
+        setAvailableCoupons(data)
+      }
     } catch (error) {
       console.error("Error fetching available coupons:", error)
     }

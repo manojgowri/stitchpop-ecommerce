@@ -1,7 +1,6 @@
 "use client"
 
 import type React from "react"
-
 import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,7 +21,7 @@ import {
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { Plus, Edit, Trash2, Copy } from "lucide-react"
 import { useToast } from "@/hooks/use-toast"
-import { fetchWithAuth } from "@/lib/fetch-with-auth"
+import { supabase } from "@/lib/supabase"
 
 interface Coupon {
   id: string
@@ -65,7 +64,30 @@ export default function CouponsPage() {
 
   const fetchCoupons = async () => {
     try {
-      const data = await fetchWithAuth("/api/coupons?admin=true")
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error("Not authenticated")
+      }
+
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/coupons?select=*&order=created_at.desc`,
+        {
+          headers: {
+            apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+            authorization: `Bearer ${session.access_token}`,
+            "content-profile": "public",
+            "content-type": "application/json",
+          },
+        },
+      )
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
+      const data = await response.json()
       setCoupons(data)
     } catch (error) {
       console.error("Error fetching coupons:", error)
@@ -97,17 +119,39 @@ export default function CouponsPage() {
 
       console.log("[v0] Processed data being sent:", processedData)
 
-      const url = editingCoupon ? `/api/coupons/${editingCoupon.id}` : "/api/coupons"
-      const method = editingCoupon ? "PUT" : "POST"
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error("Not authenticated")
+      }
+
+      const url = editingCoupon
+        ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/coupons?id=eq.${editingCoupon.id}`
+        : `${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/coupons`
+
+      const method = editingCoupon ? "PATCH" : "POST"
 
       console.log("[v0] Making request to:", url, "with method:", method)
 
-      const result = await fetchWithAuth(url, {
+      const response = await fetch(url, {
         method,
-        body: processedData,
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          authorization: `Bearer ${session.access_token}`,
+          "content-profile": "public",
+          "content-type": "application/json",
+          prefer: "return=minimal",
+        },
+        body: JSON.stringify(processedData),
       })
 
-      console.log("[v0] Success result:", result)
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`)
+      }
+
+      console.log("[v0] Success result: Coupon saved successfully")
       toast({
         title: "Success",
         description: `Coupon ${editingCoupon ? "updated" : "created"} successfully`,
@@ -145,7 +189,26 @@ export default function CouponsPage() {
     if (!confirm("Are you sure you want to delete this coupon?")) return
 
     try {
-      await fetchWithAuth(`/api/coupons?id=${id}`, { method: "DELETE" })
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+      if (!session?.access_token) {
+        throw new Error("Not authenticated")
+      }
+
+      const response = await fetch(`${process.env.NEXT_PUBLIC_SUPABASE_URL}/rest/v1/coupons?id=eq.${id}`, {
+        method: "DELETE",
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          authorization: `Bearer ${session.access_token}`,
+          "content-profile": "public",
+        },
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
+      }
+
       toast({
         title: "Success",
         description: "Coupon deleted successfully",
